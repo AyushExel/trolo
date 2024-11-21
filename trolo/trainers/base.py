@@ -95,7 +95,6 @@ class BaseTrainer(object):
         else:
             raise TypeError(f"Unsupported config type: {type(config)}")
         
-        self._validate_config(cfg)
         return cfg
 
     def _load_separate_configs(self, model, dataset, **kwargs) -> YAMLConfig:
@@ -138,7 +137,6 @@ class BaseTrainer(object):
         cfg = YAMLConfig.merge_configs(model_config, dataset_config, **kwargs)
         print("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
         
-        self._validate_config(cfg)
         return cfg
 
     def _validate_config(self, cfg: YAMLConfig):
@@ -236,6 +234,7 @@ class BaseTrainer(object):
     def _setup(self):
         """Avoid instantiating unnecessary classes"""
         self.check_and_download_dataset()
+        self._validate_config(self.cfg)
         
         cfg = self.cfg
         if cfg.device:
@@ -277,6 +276,7 @@ class BaseTrainer(object):
             atexit.register(self.writer.close)
 
     def train(self):
+        
         self._setup()
         self.optimizer = self.cfg.optimizer
         self.lr_scheduler = self.cfg.lr_scheduler
