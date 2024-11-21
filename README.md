@@ -1,4 +1,6 @@
-# trolo 🚀
+<img width="1024" alt="Screenshot 2024-11-20 at 2 38 59 AM" src="https://github.com/user-attachments/assets/73311b13-a624-4736-8472-b22318bcd6b0">
+
+# trolo
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
 
