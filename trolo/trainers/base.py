@@ -3,11 +3,15 @@ import torch.nn as nn
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional, Union
 import atexit
+import os
 
-from ..misc import dist_utils
-from ..loaders import BaseConfig
+from ..utils import dist_utils
+from ..loaders import YAMLConfig
+from ..loaders.maps import get_dataset_config_path, get_model_config_path
+from ..loaders.yaml_config import load_config, merge_dict
+from ..utils.smart_defaults import infer_pretrained_model
 
 
 def to(m: nn.Module, device: str):
@@ -26,9 +30,50 @@ def remove_module_prefix(state_dict):
     return new_state_dict
 
 
-class BaseSolver(object):
-    def __init__(self, cfg: BaseConfig) -> None:
-        self.cfg = cfg
+class BaseTrainer(object):
+    def __init__(
+        self,
+        config: Optional[Union[str, Path, Dict]] = None,  # Combined config path or dict
+        model: Optional[Union[str, Path, Dict]] = None,  # Model name, checkpoint path, config path, or config dict
+        dataset: Optional[Union[str, Path, Dict]] = None,  # Dataset name, config path, or config dict
+        pretrained_model: Optional[Union[str, Path]] = None,  # Path to pretrained model or model name
+        **kwargs
+    ):
+        """Initialize trainer with flexible configuration options.
+        
+        Args:
+            config: Combined config - can be:
+                    - Path to complete config file
+                    - Complete config dictionary
+            model: Model specification - can be:
+                    - Model name (e.g. "dfine_n")
+                    - Path to model config
+                    - Model config dictionary
+            dataset: Dataset specification - can be:
+                    - Dataset name (e.g. "coco", "dummy_coco")
+                    - Path to dataset config
+                    - Dataset config dictionary
+            pretrained_model: Path to pretrained model or model name - can be:
+                    - Absolute path to checkpoint file
+                    - Model name to load from default location
+            **kwargs: Additional config overrides
+        """
+        if config is not None:
+            if model is not None or dataset is not None:
+                raise ValueError("Cannot specify both combined config and separate model/dataset configs")
+            self.cfg = self._load_combined_config(config, **kwargs)
+        elif model is not None or dataset is not None:
+            if model is None:
+                raise ValueError("Must specify model when using separate configs")
+            if dataset is None:
+                raise ValueError("Must specify dataset when using separate configs")
+            self.cfg = self._load_separate_configs(model, dataset, **kwargs)
+        else:
+            raise ValueError("Must specify either config or both model and dataset")
+        
+        if pretrained_model is not None:
+            self.cfg.tuning = infer_pretrained_model(pretrained_model)
+        
         self.obj365_ids = [
             0, 46, 5, 58, 114, 55, 116, 65, 21, 40, 176, 127, 249, 24, 56, 139, 92, 78, 99, 96,
             144, 295, 178, 180, 38, 39, 13, 43, 120, 219, 148, 173, 165, 154, 137, 113, 145, 146,
@@ -36,8 +81,162 @@ class BaseSolver(object):
             50, 25, 75, 98, 153, 37, 73, 115, 132, 106, 61, 163, 134, 277, 81, 133, 18, 94, 30,
             169, 70, 328, 226
         ]
+
+    def _load_combined_config(self, config, **kwargs) -> YAMLConfig:
+        """Load and validate a combined config."""
+        if isinstance(config, str) and not config.endswith('.yml'):
+            cfg_path = get_model_config_path(config)
+            cfg = YAMLConfig(cfg_path, **kwargs)
+        elif isinstance(config, (str, Path)):
+            cfg_path = config
+            cfg = YAMLConfig(cfg_path, **kwargs)
+        elif isinstance(config, dict):
+            cfg = YAMLConfig.from_dict(config, **kwargs)
+        else:
+            raise TypeError(f"Unsupported config type: {type(config)}")
+        
+        self._validate_config(cfg)
+        return cfg
+
+    def _load_separate_configs(self, model, dataset, **kwargs) -> YAMLConfig:
+        """Load and merge separate model and dataset configs."""
+        # Load model config
+        if isinstance(model, str) and not model.endswith('.yml'):
+            model_cfg = get_model_config_path(model)
+            print(f"Loading model config from: {model_cfg}")
+            model_config = load_config(model_cfg)
+        elif isinstance(model, (str, Path)):
+            model_cfg = model
+            print(f"Using provided model config path: {model_cfg}")
+            model_config = load_config(model_cfg)
+        elif isinstance(model, dict):
+            model_config = model
+            print("Using provided model config dict")
+        else:
+            raise TypeError(f"Unsupported model type: {type(model)}")
+
+        # Load dataset config
+        if isinstance(dataset, str) and not dataset.endswith('.yml'):
+            dataset_cfg = get_dataset_config_path(dataset)
+            print(f"Loading dataset config from: {dataset_cfg}")
+            dataset_config = load_config(dataset_cfg)
+        elif isinstance(dataset, (str, Path)):
+            dataset_cfg = dataset
+            print(f"Using provided dataset config path: {dataset_cfg}")
+            dataset_config = load_config(dataset_cfg)
+        elif isinstance(dataset, dict):
+            dataset_config = dataset
+            print("Using provided dataset config dict")
+        else:
+            raise TypeError(f"Unsupported dataset type: {type(dataset)}")
+
+        # Print configs before merge for debugging
+        print("Model config transforms:", model_config.get('train_dataloader', {}).get('dataset', {}).get('transforms'))
+        print("Dataset config transforms:", dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms'))
+
+        # Merge configs
+        cfg = YAMLConfig.merge_configs(model_config, dataset_config, **kwargs)
+        print("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
+        
+        self._validate_config(cfg)
+        return cfg
+
+    def _validate_config(self, cfg: YAMLConfig):
+        """Validate that all required config fields are present."""
+        required_fields = {
+            'task': "Task type must be specified",
+            'train_dataloader': "Training dataloader configuration is required",
+            'val_dataloader': "Validation dataloader configuration is required",
+            'model': "Model configuration is required"
+        }
+        
+        for field, message in required_fields.items():
+            if not hasattr(cfg, field) and field not in cfg.yaml_cfg:
+                raise ValueError(message)
+
+    def check_and_download_dataset(self):
+        """Check if dataset exists and download if needed"""
+        paths_to_check = []
+        
+        # Check train dataset if exists
+        if hasattr(self.cfg, 'yaml_cfg') and 'train_dataloader' in self.cfg.yaml_cfg:
+            train_cfg = self.cfg.yaml_cfg['train_dataloader']['dataset']
+            paths_to_check.extend([
+                train_cfg['img_folder'],
+                train_cfg['ann_file']
+            ])
+            
+        # Check val dataset if exists
+        if hasattr(self.cfg, 'yaml_cfg') and 'val_dataloader' in self.cfg.yaml_cfg:
+            val_cfg = self.cfg.yaml_cfg['val_dataloader']['dataset']
+            paths_to_check.extend([
+                val_cfg['img_folder'],
+                val_cfg['ann_file']
+            ])
+            
+        missing_paths = [p for p in paths_to_check if not Path(p).exists()]
+        
+        if missing_paths:
+            if not hasattr(self.cfg, 'auto_download') or self.cfg.auto_download:
+                print(f"Dataset paths not found: {missing_paths}")
+                if hasattr(self.cfg, 'yaml_cfg') and 'download_script' in self.cfg.yaml_cfg:
+                    # Try to resolve script path
+                    script_path = Path(self.cfg.yaml_cfg['download_script'])
+                    
+                    # If direct path doesn't exist, try package location
+                    if not script_path.exists():
+                        pkg_root = Path(__file__).parent.parent  # trolo directory
+                        pkg_script_path = pkg_root / 'utils' / 'scripts' / 'data_download' / script_path.name
+                        if pkg_script_path.exists():
+                            script_path = pkg_script_path
+                        else:
+                            raise FileNotFoundError(
+                                f"Download script not found at {script_path} "
+                                f"or in package location {pkg_script_path}"
+                            )
+                    
+                    print(f"Running download script: {script_path}")
+                    try:
+                        import subprocess
+                        import stat
+                        
+                        # Get script extension
+                        script_ext = script_path.suffix.lower()
+                        
+                        if script_ext == '.py':
+                            # Run Python script
+                            subprocess.run(['python', str(script_path)], check=True)
+                        elif script_ext in ['.sh', '']:  # No extension also treated as shell script
+                            # Make script executable if it's not
+                            if not os.access(script_path, os.X_OK):
+                                script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
+                            # Run shell script
+                            subprocess.run([str(script_path)], shell=True, check=True)
+                        else:
+                            raise ValueError(f"Unsupported script type: {script_ext}")
+                            
+                        # Verify download was successful
+                        still_missing = [p for p in missing_paths if not Path(p).exists()]
+                        if still_missing:
+                            raise RuntimeError(f"Download script completed but paths still missing: {still_missing}")
+                        
+                        print("Dataset download completed successfully")
+                    except subprocess.CalledProcessError as e:
+                        raise RuntimeError(f"Dataset download failed: {e}")
+                    except Exception as e:
+                        raise RuntimeError(f"Error during dataset download: {e}")
+                else:
+                    raise ValueError(
+                        "Dataset paths missing and no download_script specified in config. "
+                        f"Missing paths: {missing_paths}"
+                    )
+            else:
+                raise FileNotFoundError(f"Dataset paths not found: {missing_paths}")
+
     def _setup(self):
         """Avoid instantiating unnecessary classes"""
+        self.check_and_download_dataset()
+        
         cfg = self.cfg
         if cfg.device:
             device = torch.device(cfg.device)

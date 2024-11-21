@@ -2,7 +2,7 @@
 
 from torch.optim.lr_scheduler import LRScheduler
 
-from ..registry import register
+from trolo.loaders import register
 
 
 class Warmup(object):

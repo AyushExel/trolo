@@ -126,14 +126,30 @@ def warp_model(
     **kwargs
 ):
     if is_dist_available_and_initialized():
-        rank = get_rank()
-        model = nn.SyncBatchNorm.convert_sync_batchnorm(model) if sync_bn else model
-        if dist_mode == 'dp':
-            model = DP(model, device_ids=[rank], output_device=rank)
-        elif dist_mode == 'ddp':
-            model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=find_unused_parameters)
+        # Check if we're using GPU first
+        using_gpu = next(model.parameters()).is_cuda
+        
+        # Only apply SyncBatchNorm if using GPU
+        if sync_bn and using_gpu:
+            model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         else:
-            raise AttributeError('')
+            print("Warning: SyncBatchNorm is not applied because GPU is not available.")
+        
+        if dist_mode == 'dp':
+            if using_gpu:
+                rank = get_rank()
+                model = DP(model, device_ids=[rank], output_device=rank)
+            else:
+                model = DP(model)
+        elif dist_mode == 'ddp':
+            if using_gpu:
+                rank = get_rank()
+                model = DDP(model, device_ids=[rank], output_device=rank, 
+                          find_unused_parameters=find_unused_parameters)
+            else:
+                model = DDP(model, find_unused_parameters=find_unused_parameters)
+        else:
+            raise AttributeError('Invalid dist_mode')
 
     if compile:
         model = torch.compile(model, mode=compile_mode)

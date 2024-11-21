@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trolo"
-version = "0.1.0"
+version = "0.1.0.dev1"
 description = "CLI tool for D-FINE model training and inference"
 requires-python = ">=3.8"
 dependencies = [
@@ -18,8 +18,11 @@ dependencies = [
 ]
 
 [project.scripts]
-trolo = "cli.cli:main"
+trolo = "trolo.cli.cli:main"
 
 [tool.setuptools.packages.find]
-where = ["trolo"]
-include = ["cli*"]
+where = ["."]
+include = ["trolo*"]
+
+[tool.setuptools.package-data]
+trolo = ["configs/**/*.yml", "configs/**/*.yaml"]

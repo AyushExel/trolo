@@ -1,0 +1,55 @@
+task: detection
+
+evaluator:
+  type: CocoEvaluator
+  iou_types: ['bbox']
+
+# Use minimal number of classes for testing
+num_classes: 3
+remap_mscoco_category: False
+
+train_dataloader:
+  type: DataLoader
+  dataset:
+    type: CocoDetection
+    img_folder: ./data/dummy_coco/train2017
+    ann_file: ./data/dummy_coco/annotations/instances_train2017.json
+    return_masks: False
+    transforms:
+      type: Compose
+      ops: ~
+  shuffle: True
+  num_workers: 0  # Use 0 for easier debugging
+  drop_last: False
+  collate_fn:
+    type: BatchImageCollateFunction
+  total_batch_size: 2  # Small batch size for testing
+
+val_dataloader:
+  type: DataLoader
+  dataset:
+    type: CocoDetection
+    img_folder: ./data/dummy_coco/val2017
+    ann_file: ./data/dummy_coco/annotations/instances_val2017.json
+    return_masks: False
+    transforms:
+      type: Compose
+      ops: ~
+  shuffle: False
+  num_workers: 0  # Use 0 for easier debugging
+  drop_last: False
+  collate_fn:
+    type: BatchImageCollateFunction
+  total_batch_size: 1  # Small batch size for testing
+
+# Categories for the dummy dataset
+categories:
+  - id: 1
+    name: "person"
+    supercategory: "person"
+  - id: 2
+    name: "car" 
+    supercategory: "vehicle"
+  - id: 3
+    name: "dog"
+    supercategory: "animal" 

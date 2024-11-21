@@ -439,7 +439,7 @@ class HGNetv2(nn.Module):
                  freeze_at=0,
                  freeze_norm=True,
                  pretrained=True,
-                 local_model_dir='weight/hgnetv2/'):
+                 local_model_dir='weights/hgnetv2/'):
         super().__init__()
         self.use_lab = use_lab
         self.return_idx = return_idx
@@ -487,32 +487,48 @@ class HGNetv2(nn.Module):
         if pretrained:
             RED, GREEN, RESET = "\033[91m", "\033[92m", "\033[0m"
             try:
-                model_path = local_model_dir + 'PPHGNetV2_' + name + '_stage1.pth'
+                # Ensure directory exists
+                os.makedirs(local_model_dir, exist_ok=True)
+                
+                model_path = os.path.join(local_model_dir, f'PPHGNetV2_{name}_stage1.pth')
                 if os.path.exists(model_path):
                     state = torch.load(model_path, map_location='cpu')
                     print(f"Loaded stage1 {name} HGNetV2 from local file.")
                 else:
-                    # If the file doesn't exist locally, download from the URL
-                    if torch.distributed.get_rank() == 0:
-                        print(GREEN + "If the pretrained HGNetV2 can't be downloaded automatically. Please check your network connection." + RESET)
-                        print(GREEN + "Please check your network connection. Or download the model manually from " + RESET + f"{download_url}" + GREEN + " to " + RESET + f"{local_model_dir}." + RESET)
-                        state = torch.hub.load_state_dict_from_url(download_url, map_location='cpu', model_dir=local_model_dir)
-                        torch.distributed.barrier()
-                    else:
-                        torch.distributed.barrier()
-                        state = torch.load(local_model_dir)
+                    # Download logic that works for both CPU and GPU
+                    is_main_process = not torch.distributed.is_available() or \
+                                    not torch.distributed.is_initialized() or \
+                                    torch.distributed.get_rank() == 0
+                    
+                    if is_main_process:
+                        print(GREEN + "Downloading pretrained model..." + RESET)
+                        try:
+                            state = torch.hub.load_state_dict_from_url(
+                                download_url,
+                                map_location='cpu',
+                                model_dir=local_model_dir,
+                                progress=True
+                            )
+                            print(f"Successfully downloaded and loaded stage1 {name} HGNetv2.")
+                        except Exception as e:
+                            print(RED + f"Download failed: {e}" + RESET)
+                            print(GREEN + f"Please manually download from {download_url} to {local_model_dir}" + RESET)
+                            raise
 
-                    print(f"Loaded stage1 {name} HGNetV2 from URL.")
+                    # Synchronize processes if using distributed training
+                    if torch.distributed.is_available() and torch.distributed.is_initialized():
+                        torch.distributed.barrier()
+                        if not is_main_process:
+                            state = torch.load(model_path, map_location='cpu')
 
+                # Load the state dict
                 self.load_state_dict(state)
-
-            except (Exception, KeyboardInterrupt) as e:
-                if torch.distributed.get_rank() == 0:
-                    print(f"{str(e)}")
-                    logging.error(RED + "CRITICAL WARNING: Failed to load pretrained HGNetV2 model" + RESET)
-                    logging.error(GREEN + "Please check your network connection. Or download the model manually from " \
-                                + RESET + f"{download_url}" + GREEN + " to " + RESET + f"{local_model_dir}." + RESET)
-                exit()
+                
+            except Exception as e:
+                print(RED + "CRITICAL WARNING: Failed to load pretrained HGNetV2 model" + RESET)
+                print(f"Error: {str(e)}")
+                print(GREEN + f"Please download manually from {download_url} to {local_model_dir}" + RESET)
+                raise
 
 
 

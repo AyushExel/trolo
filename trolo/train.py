@@ -1,89 +1,147 @@
-import os
-from pathlib import Path
+"""
+D-FINE: Redefine Regression Task of DETRs as Fine-grained Distribution Refinement
+Copyright (c) 2024 The D-FINE Authors. All Rights Reserved.
+---------------------------------------------------------------------------------
+Modified from RT-DETR (https://github.com/lyuwenyu/RT-DETR)
+Copyright (c) 2023 lyuwenyu. All Rights Reserved.
+"""
 
-def train_model(
-    model_size: str = "l",
-    dataset_type: str = "coco",
-    config_path: str = None,
-    resume_path: str = None,
-    output_dir: str = None,
-    use_amp: bool = True,
-    num_gpus: int = 4,
-    seed: int = 0,
-    save_logs: bool = True
-) -> None:
-    """
-    Train a D-FINE model with simplified parameters.
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
+import torch
+
+from trolo.utils import dist_utils
+from trolo.loaders import YAMLConfig, yaml_utils
+from trolo.trainers import TASKS
+from trolo.utils.smart_defaults import infer_device
+from trolo.loaders.maps import get_dataset_config_path, get_model_config_path
+
+debug=False
+
+if debug:
+    def custom_repr(self):
+        return f'{{Tensor:{tuple(self.shape)}}} {original_repr(self)}'
+    original_repr = torch.Tensor.__repr__
+    torch.Tensor.__repr__ = custom_repr
+
+def init_distributed_mode(device='cpu'):
+    """Initialize distributed training based on available hardware."""
+    if not torch.distributed.is_available():
+        print("Warning: Distributed package not available. Running in non-distributed mode.")
+        return
+
+    try:
+        if torch.cuda.is_available():
+            backend = "nccl"  # NCCL backend for GPU
+        else:
+            backend = "gloo"  # Gloo backend for CPU
+
+        # Initialize process group
+        torch.distributed.init_process_group(
+            backend=backend,
+            init_method="tcp://localhost:12345",
+            rank=0,
+            world_size=1
+        )
+    except Exception as e:
+        print(f"Warning: Distributed training initialization failed: {e}")
+        print("Running in non-distributed mode.")
+
+def train_model(config: str,
+         resume: str = None,
+         tuning: str = None,
+         device: str = None,
+         seed: int = None,
+         use_amp: bool = False,
+         output_dir: str = None,
+         summary_dir: str = None,
+         test_only: bool = False,
+         update: list = None,
+         print_method: str = 'builtin',
+         print_rank: int = 0,
+         local_rank: int = None) -> None:
+    """Main training function for D-FINE models.
     
     Args:
-        model_size: Size of the model ('n', 's', 'm', 'l', 'x')
-        dataset_type: Type of dataset ('coco', 'obj365', 'obj2coco', 'custom')
-        config_path: Optional custom config path. If None, uses default based on model_size and dataset_type
-        resume_path: Path to checkpoint to resume training from
-        output_dir: Directory to save outputs. If None, creates one based on model_size and dataset_type
-        use_amp: Whether to use automatic mixed precision training
-        num_gpus: Number of GPUs to use for training
+        config: Path to YAML config file
+        resume: Path to checkpoint to resume training from
+        tuning: Path to checkpoint to tune from
+        device: Device to run on ('cpu', 'cuda:0', etc)
         seed: Random seed for reproducibility
-        save_logs: Whether to save training logs to a file
+        use_amp: Whether to use automatic mixed precision training
+        output_dir: Directory to save outputs
+        summary_dir: Directory for tensorboard summary
+        test_only: If True, only run validation
+        update: List of YAML config updates
+        print_method: Print method to use ('builtin', etc)
+        print_rank: Rank ID to print from
+        local_rank: Local rank ID for distributed training
     """
-    # Validate inputs
-    if model_size not in ['n', 's', 'm', 'l', 'x']:
-        raise ValueError("model_size must be one of: n, s, m, l, x")
-    
-    if dataset_type not in ['coco', 'obj365', 'obj2coco', 'custom']:
-        raise ValueError("dataset_type must be one of: coco, obj365, obj2coco, custom")
+    # Only setup distributed training if CUDA is available
+    if torch.cuda.is_available():
+        dist_utils.setup_distributed(print_rank, print_method, seed=seed)
 
-    # Set default config path if not provided
-    if config_path is None:
-        if dataset_type == 'obj365':
-            config_path = f"configs/dfine/objects365/dfine_hgnetv2_{model_size}_{dataset_type}.yml"
-        elif dataset_type == 'obj2coco':
-            config_path = f"configs/dfine/objects365/dfine_hgnetv2_{model_size}_{dataset_type}.yml"
-        elif dataset_type == 'custom':
-            config_path = f"configs/dfine/custom/dfine_hgnetv2_{model_size}_custom.yml"
+    assert not all([tuning, resume]), \
+        'Only support from_scrach or resume or tuning at one time'
+
+    # Infer device if not specified
+    if device is None:
+        device = infer_device()
+
+    init_distributed_mode(device)
+
+    update_dict = yaml_utils.parse_cli(update) if update else {}
+    update_dict.update({k: v for k, v in locals().items() \
+        if k not in ['update', ] and v is not None})
+    cfg = YAMLConfig(config, **update_dict)
+
+    if resume or tuning:
+        if 'HGNetv2' in cfg.yaml_cfg:
+            cfg.yaml_cfg['HGNetv2']['pretrained'] = False
+
+    print('cfg: ', cfg.__dict__)
+
+    solver = TASKS[cfg.yaml_cfg['task']](cfg)
+
+    try:
+        if test_only:
+            solver.val()
         else:
-            config_path = f"configs/dfine/dfine_hgnetv2_{model_size}_coco.yml"
+            solver.fit()
+    except Exception as e:
+        print(f"Training error: {e}")
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
+        raise
+    finally:
+        if torch.distributed.is_available() and torch.distributed.is_initialized():
+            torch.distributed.destroy_process_group()
 
-    # Set default output directory if not provided
-    if output_dir is None:
-        output_dir = f"output/{model_size}_{dataset_type}"
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser()
 
-    # Construct the training command
-    gpu_devices = ','.join(str(i) for i in range(num_gpus))
-    base_cmd = f"CUDA_VISIBLE_DEVICES={gpu_devices} torchrun --master_port=7777 --nproc_per_node={num_gpus}"
-    train_cmd = f"{base_cmd} train.py -c {config_path} --output-dir {output_dir} --seed={seed}"
+    # priority 0
+    parser.add_argument('-c', '--config', type=str, required=True)
+    parser.add_argument('-r', '--resume', type=str, help='resume from checkpoint')
+    parser.add_argument('-t', '--tuning', type=str, help='tuning from checkpoint')
+    parser.add_argument('-d', '--device', type=str, help='device')
+    parser.add_argument('--seed', type=int, help='exp reproducibility')
+    parser.add_argument('--use-amp', action='store_true', help='auto mixed precision training')
+    parser.add_argument('--output-dir', type=str, help='output directoy')
+    parser.add_argument('--summary-dir', type=str, help='tensorboard summry')
+    parser.add_argument('--test-only', action='store_true', default=False,)
 
-    if use_amp:
-        train_cmd += " --use-amp"
-    
-    if resume_path:
-        train_cmd += f" -r {resume_path}"
+    # priority 1
+    parser.add_argument('-u', '--update', nargs='+', help='update yaml config')
 
-    # Add log redirection if requested
-    if save_logs:
-        log_file = f"{output_dir}/{model_size}_{dataset_type}.txt"
-        train_cmd += f" &> \"{log_file}\" 2>&1"
+    # env
+    parser.add_argument('--print-method', type=str, default='builtin', help='print method')
+    parser.add_argument('--print-rank', type=int, default=0, help='print rank id')
 
-    # Create output directory
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    parser.add_argument('--local-rank', type=int, help='local rank id')
+    args = parser.parse_args()
 
-    # Execute training command
-    print(f"Starting training with command:\n{train_cmd}")
-    result = os.system(train_cmd)
-
-    # Handle training failure and automatic resume
-    if result != 0:
-        print("First training attempt failed, attempting to resume...")
-        resume_path = f"{output_dir}/last.pth"
-        resume_cmd = f"{base_cmd} train.py -c {config_path} --output-dir {output_dir} --seed={seed}"
-        
-        if use_amp:
-            resume_cmd += " --use-amp"
-        
-        resume_cmd += f" -r {resume_path}"
-        
-        if save_logs:
-            log_file = f"{output_dir}/{model_size}_{dataset_type}_resume.txt"
-            resume_cmd += f" &> \"{log_file}\" 2>&1"
-        
-        os.system(resume_cmd)
+    main(**vars(args))

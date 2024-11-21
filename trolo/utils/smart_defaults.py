@@ -6,6 +6,7 @@ import os
 import torch
 from pathlib import Path
 from typing import Dict
+from trolo.loaders.maps import MODEL_CONFIG_MAP, get_model_config_path
 
 def find_config_files() -> Dict[str, Path]:
     """
@@ -32,9 +33,7 @@ DEFAULT_MODEL = "dfine_n_coco.pth"
 
 MODEL_HUB = "..."
 HUB_MODELS = ["fine_n_coco.pth"]
-MODEL_CONFIG_CKPT_MAP = {
-    "dfine_n_coco.pth": "dfine_hgnetv2_n_coco.yml"
-}
+
 
 
 def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
@@ -81,16 +80,19 @@ def infer_input_path(input_path: str = None):
 
     return input_path
 
-def infer_model_config_path(config_file: str):
+def infer_model_config_path(config_file: str = None):
     """
     Check if the config file exists in the package config directory. If not, search in the installed location
     configs/ directory recursively.
     """
-    if os.path.exists(config_file):
+    if config_file is None:
+        return get_model_config_path(DEFAULT_MODEL)
+
+    if os.path.exists(config_file) and config_file.endswith('.yml') or config_file.endswith('.yaml'):
         return config_file
     
-    if config_file in CONFIG_FILES:
-        return CONFIG_FILES[config_file]
+    if config_file in MODEL_CONFIG_MAP:
+        return get_model_config_path(config_file)
     
     raise FileNotFoundError(f"Could not find config file at {config_file} or in package config directory.")
     

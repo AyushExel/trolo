@@ -5,8 +5,8 @@ import torch.nn as nn
 import math
 from copy import deepcopy
 
-from ..registry import register
-from ..misc import dist_utils
+from trolo.loaders import register
+from trolo.utils import dist_utils
 
 __all__ = ['ModelEMA']
 

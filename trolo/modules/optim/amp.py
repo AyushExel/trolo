@@ -1,7 +1,7 @@
 
 import torch.cuda.amp as amp
 
-from ..registry import register
+from trolo.loaders import register
 
 
 __all__ = ['GradScaler']

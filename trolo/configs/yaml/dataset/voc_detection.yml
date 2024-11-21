@@ -5,6 +5,8 @@ evaluator:
   iou_types: ['bbox', ]
 
 num_classes: 20
+auto_download: true
+download_script: "voc.sh"
 
 train_dataloader:
   type: DataLoader

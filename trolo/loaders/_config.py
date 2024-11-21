@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -287,3 +285,18 @@ class BaseConfig(object):
             if not k.startswith('_'):
                 s +=  f'{k}: {v}\n'
         return s
+
+    def state_dict(self):
+        """Return serializable state dictionary"""
+        state = {}
+        # Save all non-private attributes
+        for k, v in self.__dict__.items():
+            if not k.startswith('_'):
+                state[k] = v
+        return state
+
+    def load_state_dict(self, state_dict):
+        """Load state from dictionary"""
+        for k, v in state_dict.items():
+            if not k.startswith('_'):
+                self.__dict__[k] = v

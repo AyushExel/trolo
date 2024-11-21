@@ -7,7 +7,8 @@ import numpy as np
 import onnxruntime as ort
 from pathlib import Path
 from trolo.loaders import YAMLConfig
-from trolo.utils.smart_defaults import MODEL_CONFIG_CKPT_MAP, infer_model_config_path
+from trolo.utils.smart_defaults import infer_model_config_path, infer_pretrained_model
+from trolo.loaders.maps import MODEL_CONFIG_MAP, get_model_config_path
 
 def draw_predictions(images, labels, boxes, scores, thrh=0.4):
     """Draw predictions on images"""
@@ -171,9 +172,8 @@ def load_model(model_path, format, device):
     """Load model based on format"""
     if format == 'torch':
         # Load model configuration
-        cfg_path = MODEL_CONFIG_CKPT_MAP[model_path]
-        cfg_path = infer_model_config_path(cfg_path)
-        
+        model_name = Path(model_path).name
+        cfg_path = get_model_config_path(model_name)
         cfg = YAMLConfig(cfg_path, resume=model_path)
 
         if 'HGNetv2' in cfg.yaml_cfg:

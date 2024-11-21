@@ -3,7 +3,7 @@
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 
-from ..registry import register
+from trolo.loaders import register
 
 
 __all__ = ['AdamW', 'SGD', 'Adam', 'MultiStepLR', 'CosineAnnealingLR', 'OneCycleLR', 'LambdaLR']

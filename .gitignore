@@ -16,3 +16,10 @@ env/
 *.pyc
 *.pycache__
 *.egg-info
+dist/
+build/
+data/
+weights/
+output/
+*.jpg
+test.py

@@ -4,13 +4,54 @@ import datetime
 
 import torch
 
-from ..misc import dist_utils, stats
+from ..utils import dist_utils, stats
 
 from .base import BaseTrainer
 from .det_engine import train_one_epoch, evaluate
 
+from pathlib import Path
+from typing import Union, Optional, Dict
+
 
 class DetectionTrainer(BaseTrainer):
+    """Detection specific trainer implementation"""
+    def __init__(
+        self, 
+        config: Optional[Union[str, Path, Dict]] = None,
+        model: Optional[Union[str, Path, Dict]] = None,
+        dataset: Optional[Union[str, Path, Dict]] = None,
+        pretrained_model: Optional[Union[str, Path]] = None,
+        **kwargs
+    ):
+        """Initialize detection trainer.
+        
+        Args:
+            config: Combined config - can be:
+                    - Path to complete config file
+                    - Complete config dictionary
+            model: Model specification - can be:
+                    - Model name (e.g. "dfine_n_coco")
+                    - Path to model config
+                    - Model config dictionary
+            dataset: Dataset specification - can be:
+                    - Dataset name (e.g. "coco", "dummy_coco") 
+                    - Path to dataset config
+                    - Dataset config dictionary
+            pretrained_model: Path to pretrained model or model name - can be:
+                    - Absolute path to checkpoint file
+                    - Model name to load from default location
+            **kwargs: Additional config overrides
+        """
+        super().__init__(
+            config=config,
+            model=model,
+            dataset=dataset,
+            pretrained_model=pretrained_model,
+            **kwargs
+        )
+        
+        if not self.cfg.task == "detection":
+            raise ValueError("DetectionTrainer requires task='detection' in config")
 
     def fit(self, ):
         self.train()

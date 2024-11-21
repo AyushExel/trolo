@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,6 +5,7 @@ from torch.utils.data import DataLoader
 
 import re
 import copy
+from typing import Union, Dict
 
 from ._config import BaseConfig
 from .registry import create_from_config
@@ -24,6 +23,26 @@ class YAMLConfig(BaseConfig):
         for k in super().__dict__:
             if not k.startswith('_') and k in cfg:
                 self.__dict__[k] = cfg[k]
+
+    @classmethod
+    def from_state_dict(cls, state_dict: dict) -> "YAMLConfig":
+        """Create YAMLConfig instance from state dictionary
+        
+        Args:
+            state_dict: Dictionary containing config state
+            
+        Returns:
+            YAMLConfig instance initialized from state_dict
+        """
+        config = cls.__new__(cls)
+        super(YAMLConfig, config).__init__()
+        
+        # Initialize yaml_cfg first
+        config.yaml_cfg = copy.deepcopy(state_dict.get('yaml_cfg', {}))
+        
+        # Load remaining state
+        config.load_state_dict(state_dict)
+        return config
 
     @property
     def global_cfg(self, ):
@@ -153,7 +172,7 @@ class YAMLConfig(BaseConfig):
         if total_batch_size is None:
             bs = cfg.get('batch_size')
         else:
-            from ..misc import dist_utils
+            from trolo.utils import dist_utils
             assert total_batch_size % dist_utils.get_world_size() == 0, \
                 'total_batch_size should be divisible by world size'
             bs = total_batch_size // dist_utils.get_world_size()
@@ -169,3 +188,49 @@ class YAMLConfig(BaseConfig):
         loader = create_from_config(name, global_cfg, batch_size=bs)
         loader.shuffle = self.yaml_cfg[name].get('shuffle', False)
         return loader
+
+    @classmethod
+    def merge_configs(cls, model_cfg: Union[str, Dict], dataset_cfg: Union[str, Dict], **kwargs) -> 'YAMLConfig':
+        """Merge separate model and dataset configs."""
+        # Load configs if paths provided
+        if isinstance(model_cfg, str):
+            model_cfg = load_config(model_cfg)
+        if isinstance(dataset_cfg, str):
+            dataset_cfg = load_config(dataset_cfg)
+        
+        # Deep copy to avoid modifying originals
+        model_cfg = copy.deepcopy(model_cfg)
+        dataset_cfg = copy.deepcopy(dataset_cfg)
+        
+        # Start with model config as base
+        merged = model_cfg
+        
+        # Merge dataset config underneath (won't override model settings)
+        merged = merge_dict(dataset_cfg, merged, inplace=False)
+        
+        # Finally apply any additional kwargs overrides
+        merged = merge_dict(merged, kwargs, inplace=False)
+        
+        # Create config object
+        cfg = cls.__new__(cls)
+        super(YAMLConfig, cfg).__init__()
+        cfg.yaml_cfg = copy.deepcopy(merged)
+        
+        # Copy attributes from base config
+        for k in super(YAMLConfig, cfg).__dict__:
+            if not k.startswith('_') and k in merged:
+                cfg.__dict__[k] = merged[k]
+                
+        return cfg
+
+    def state_dict(self):
+        """Return serializable state dictionary including yaml config"""
+        state = super().state_dict()
+        state['yaml_cfg'] = self.yaml_cfg
+        return state
+
+    def load_state_dict(self, state_dict):
+        """Load state including yaml config"""
+        super().load_state_dict(state_dict)
+        if 'yaml_cfg' in state_dict:
+            self.yaml_cfg = state_dict['yaml_cfg']
