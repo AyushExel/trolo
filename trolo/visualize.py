@@ -1,10 +1,11 @@
 from PIL import Image, ImageDraw, ImageFont
+from pathlib import Path
 import numpy as np
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 def visualize_detections(
-    image: Union[Image.Image, List[Image.Image]], 
-    predictions: Dict[str, "torch.Tensor"], 
+    image: Union[Image.Image, List[Image.Image], Path, List[Path]], 
+    predictions: Union[Dict[str, "torch.Tensor"], List[Dict[str, "torch.Tensor"]], Tuple[Dict[str, "torch.Tensor"], ...]], 
     confidence_threshold: float = 0.5,
     colors: Dict[int, tuple] = None,
     class_names: Dict[int, str] = None
@@ -13,92 +14,58 @@ def visualize_detections(
     Visualize detection results on image(s)
     
     Args:
-        image: PIL Image or list of PIL Images
-        predictions: Dictionary containing 'boxes', 'scores', 'labels'
+        image: PIL Image or list of PIL Images or paths
+        predictions: Predictions in one of these formats:
+            - Single image: Dict with 'boxes', 'scores', 'labels'
+            - Batch: Dict with batched tensors
+            - Multiple: Tuple/List of prediction dicts
         confidence_threshold: Minimum confidence score to display
         colors: Optional dictionary mapping class ids to RGB colors
         class_names: Optional dictionary mapping class ids to class names
     
     Returns:
         PIL Image(s) with drawn detections
-        
-    Examples:
-        # Single image inference and visualization
-        >>> from PIL import Image
-        >>> from trolo.inference.detection import DetectionPredictor
-        >>> 
-        >>> # Load model and image
-        >>> predictor = DetectionPredictor("dfine_n_coco.pth")
-        >>> image = Image.open("path/to/image.jpg").convert('RGB')
-        >>> 
-        >>> # Run inference
-        >>> predictions = predictor.predict(image)
-        >>> 
-        >>> # Basic visualization
-        >>> result = visualize_detections(image, predictions)
-        >>> result.show()
-        >>> result.save("output.jpg")
-        
-        # Batch processing with custom classes and colors
-        >>> # Define COCO class names
-        >>> class_names = {
-        ...     0: 'person',
-        ...     1: 'bicycle',
-        ...     2: 'car',
-        ...     # ... add more classes as needed
-        >>> }
-        >>> 
-        >>> # Define custom colors (RGB)
-        >>> colors = {
-        ...     0: (255, 0, 0),    # Red for person
-        ...     1: (0, 255, 0),    # Green for bicycle
-        ...     2: (0, 0, 255),    # Blue for car
-        ...     # ... add more colors as needed
-        >>> }
-        >>> 
-        >>> # Process multiple images
-        >>> images = [Image.open(f) for f in ["img1.jpg", "img2.jpg"]]
-        >>> predictions = predictor.predict(images)
-        >>> 
-        >>> # Visualize with custom settings
-        >>> results = visualize_detections(
-        ...     images, 
-        ...     predictions,
-        ...     confidence_threshold=0.7,
-        ...     colors=colors,
-        ...     class_names=class_names
-        >>> )
-        >>> 
-        >>> # Save results
-        >>> for i, result in enumerate(results):
-        ...     result.save(f"output_{i}.jpg")
     """
+    # Handle image input
+    if isinstance(image, (str, Path)):
+        image = Image.open(image).convert('RGB')
     if isinstance(image, Image.Image):
         image = [image]
-        for k in predictions:
-            predictions[k] = predictions[k].unsqueeze(0)
-            
+    elif isinstance(image, (list, tuple)):
+        image = [img if isinstance(img, Image.Image) else Image.open(img).convert('RGB') for img in image]
+
+    # Handle predictions input
+    if isinstance(predictions, (tuple, list)):
+        # Multiple individual predictions
+        if all(isinstance(p, dict) for p in predictions):
+            pred_list = predictions
+        else:
+            raise ValueError("If predictions is a tuple/list, all elements must be dictionaries")
+    else:
+        # Single dictionary with possible batch dimension
+        pred_list = [predictions]
+
     # Default color palette
     if colors is None:
         colors = {i: tuple(np.random.randint(0, 255, 3).tolist()) for i in range(80)}
     
     # Try to load a larger font, fallback to default if not available
     try:
-        font = ImageFont.truetype("Arial.ttf", 24)  # Increased font size
+        font = ImageFont.truetype("Arial.ttf", 24)
     except:
         font = ImageFont.load_default()
         
     result_images = []
     
-    for idx, img in enumerate(image):
+    for idx, (img, preds) in enumerate(zip(image, pred_list)):
         # Create copy of image for drawing
         draw_img = img.copy()
         draw = ImageDraw.Draw(draw_img)
         
         # Get predictions for this image
-        boxes = predictions['boxes'][idx]
-        scores = predictions['scores'][idx]
-        labels = predictions['labels'][idx]
+        boxes = preds['boxes']
+        scores = preds['scores']
+        labels = preds['labels']
         
         # Filter by confidence
         mask = scores >= confidence_threshold
@@ -108,7 +75,7 @@ def visualize_detections(
         
         # Draw each detection
         for box, score, label in zip(boxes, scores, labels):
-            # Convert from cxcywh to xyxy format
+            # Convert box format if needed (assuming cxcywh format)
             cx, cy, w, h = box.tolist()
             x0 = cx - w/2
             y0 = cy - h/2
@@ -156,7 +123,7 @@ def visualize_detections(
                 fill=(50, 50, 50)  # Dark gray
             )
             
-            # Draw text with a small offset from the top of the box
+            # Draw text
             draw.text(
                 (x0 + 2, max(0, y0 - label_height - 2)), 
                 label_text,
@@ -170,10 +137,6 @@ def visualize_detections(
                 font=font
             )
             
-            #print(f"Original box (cxcywh): {box.tolist()}")
-            #print(f"Converted box (xyxy): [{x0}, {y0}, {x1}, {y1}]")
-            #print(f"Image size: {img.size}")
-            
         result_images.append(draw_img)
         
-    return result_images[0] if len(result_images) == 1 else result_images
+    return result_images

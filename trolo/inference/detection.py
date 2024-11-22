@@ -1,4 +1,4 @@
-from typing import Union, List, Dict, Any
+from typing import Union, List, Dict, Any, Tuple
 import torch
 from PIL import Image
 import torchvision.transforms as T
@@ -107,66 +107,91 @@ class DetectionPredictor(BasePredictor):
             
         return torch.stack(images).to(self.device)
         
-    def postprocess(self, outputs: torch.Tensor, original_sizes: List[tuple]) -> Dict[str, Any]:
-        """Convert model outputs to boxes, scores, labels"""
+    def postprocess(self, outputs: torch.Tensor, original_sizes: List[tuple]) -> List[Dict[str, Any]]:
+        """Convert model outputs to boxes, scores, labels
+        
+        Returns:
+            List of dictionaries, one per image, each containing:
+                - boxes: tensor of shape (N, 4) in [cx, cy, w, h] format
+                - scores: tensor of shape (N,)
+                - labels: tensor of shape (N,)
+        """
         if isinstance(outputs, dict):
             logits = outputs['pred_logits']
-            boxes = outputs['pred_boxes']
+            boxes = outputs['pred_boxes']  # [cx, cy, w, h] format
         else:
             logits, boxes = outputs
         
         probs = logits.softmax(-1)
         scores, labels = probs.max(-1)
         
-        # Convert relative [0,1] boxes to absolute coordinates using original sizes
+        # Scale normalized coordinates to image size
         boxes = boxes.clone()
         for i, (h, w) in enumerate(original_sizes):
-            boxes[i, :, [0, 2]] *= w
-            boxes[i, :, [1, 3]] *= h
+            boxes[i, :, [0, 2]] *= w  # cx, w
+            boxes[i, :, [1, 3]] *= h  # cy, h
         
-        return {
-            'boxes': boxes.cpu(),
-            'scores': scores.cpu(),
-            'labels': labels.cpu()
-        }
+        # Convert batch tensors to list of individual predictions
+        predictions = []
+        for i in range(len(original_sizes)):
+            predictions.append({
+                'boxes': boxes[i].cpu(),
+                'scores': scores[i].cpu(),
+                'labels': labels[i].cpu()
+            })
+            
+        return predictions
         
-    def predict(self, images, conf_threshold=0.5):
+    def predict(
+        self, 
+        images: Union[str, List[str], Image.Image, List[Image.Image]], 
+        conf_threshold: float = 0.5,
+        return_inputs: bool = False
+    ) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], List[Image.Image]]]:
         """
         Predict on images with confidence thresholding
         
         Args:
-            images: PIL Image or list of PIL Images
+            images: PIL Image or list of PIL Images, or path or list of paths to images
             conf_threshold: Confidence threshold for detections (default: 0.5)
+            return_inputs: Whether to return the original inputs
+            
+        Returns:
+            List of prediction dictionaries, one per image, each containing:
+                - boxes: tensor of shape (N, 4)
+                - scores: tensor of shape (N,)
+                - labels: tensor of shape (N,)
+            If return_inputs=True, also returns list of PIL images
         """
         # Get original image sizes before preprocessing
         if isinstance(images, (str, Image.Image)):
             images = [images]
-        
+
         original_sizes = []
+        inputs = []
         for img in images:
-            if isinstance(img, str):
-                img = Image.open(img)
+            if not isinstance(img, Image.Image):
+                img = Image.open(img).convert('RGB')
+            inputs.append(img)
             original_sizes.append((img.height, img.width))
         
         # Process input
-        batch = self.preprocess(images)
-        batch_size = batch.shape[0]
+        batch = self.preprocess(inputs)
         
         # Run inference
         with torch.no_grad():
             outputs = self.model(batch)
             # Pass original sizes to postprocess
-            outputs = self.postprocess(outputs, original_sizes)
+            predictions = self.postprocess(outputs, original_sizes)
         
         # Filter by confidence while maintaining batch dimension
-        if 'scores' in outputs:
-            mask = outputs['scores'] >= conf_threshold  # Shape: (batch_size, num_queries)
-            filtered_outputs = {}
-            for k in outputs:
-                filtered_outputs[k] = []
-                for b in range(batch_size):
-                    filtered_outputs[k].append(outputs[k][b][mask[b]])
-                filtered_outputs[k] = torch.stack(filtered_outputs[k])
-            outputs = filtered_outputs
+        filtered_predictions = []
+        for pred in predictions:
+            mask = pred['scores'] >= conf_threshold
+            filtered_predictions.append({
+                'boxes': pred['boxes'][mask],
+                'scores': pred['scores'][mask],
+                'labels': pred['labels'][mask]
+            })
         
-        return outputs
+        return filtered_predictions, inputs if return_inputs else filtered_predictions
