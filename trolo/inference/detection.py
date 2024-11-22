@@ -194,4 +194,6 @@ class DetectionPredictor(BasePredictor):
                 'labels': pred['labels'][mask]
             })
         
-        return filtered_predictions, inputs if return_inputs else filtered_predictions
+        if return_inputs:
+            return filtered_predictions, inputs
+        return filtered_predictions

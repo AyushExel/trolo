@@ -115,3 +115,9 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ---
 
 **Note**: This is an early work in progress. Many features are still under development.
+
+### Immidiate TODOs
+- [ ] Add support for training with passing model and dataset configs separately
+- [ ] W&B logging
+- [ ] Unit tests
+- [ ] Docusaurus documentation

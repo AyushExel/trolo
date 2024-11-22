@@ -10,8 +10,8 @@ from .base import BaseTrainer
 from .det_engine import train_one_epoch, evaluate
 
 from pathlib import Path
-from typing import Union, Optional, Dict
-
+from typing import Union, Optional, Dict, List
+from trolo.utils.logging import WandbLogger, ExperimentLogger
 
 class DetectionTrainer(BaseTrainer):
     """Detection specific trainer implementation"""
@@ -21,6 +21,7 @@ class DetectionTrainer(BaseTrainer):
         model: Optional[Union[str, Path, Dict]] = None,
         dataset: Optional[Union[str, Path, Dict]] = None,
         pretrained_model: Optional[Union[str, Path]] = None,
+        loggers: Optional[List[ExperimentLogger]] = None,
         **kwargs
     ):
         """Initialize detection trainer.
@@ -47,11 +48,13 @@ class DetectionTrainer(BaseTrainer):
             model=model,
             dataset=dataset,
             pretrained_model=pretrained_model,
+            loggers=loggers,
             **kwargs
         )
         
         if not self.cfg.task == "detection":
             raise ValueError("DetectionTrainer requires task='detection' in config")
+
 
     def fit(self, ):
         self.train()
@@ -173,11 +176,35 @@ class DetectionTrainer(BaseTrainer):
 
 
             log_stats = {
-                **{f'train_{k}': v for k, v in train_stats.items()},
-                **{f'test_{k}': v for k, v in test_stats.items()},
+                **{f'train/{k}': v for k, v in train_stats.items()},
+                **{f'test/{k}': v for k, v in test_stats.items()},
                 'epoch': epoch,
                 'n_parameters': n_parameters
             }
+
+            # Add COCO evaluation metrics
+            if coco_evaluator is not None and "bbox" in coco_evaluator.coco_eval:
+                metric_names = [
+                    'AP@[IoU=0.50:0.95]',
+                    'AP@[IoU=0.50]',
+                    'AP@[IoU=0.75]',
+                    'AP@[IoU=0.50:0.95]|small',
+                    'AP@[IoU=0.50:0.95]|medium', 
+                    'AP@[IoU=0.50:0.95]|large',
+                    'AR@[IoU=0.50:0.95]|1',
+                    'AR@[IoU=0.50:0.95]|10',
+                    'AR@[IoU=0.50:0.95]|100',
+                    'AR@[IoU=0.50:0.95]|small',
+                    'AR@[IoU=0.50:0.95]|medium',
+                    'AR@[IoU=0.50:0.95]|large'
+                ]
+                log_stats.update({
+                    f'metrics/{name}': value 
+                    for name, value in zip(metric_names, coco_evaluator.coco_eval["bbox"].stats.tolist())
+                })
+
+            for logger in self.loggers:
+                logger.log_metrics(log_stats, epoch)
 
             if self.output_dir and dist_utils.is_main_process():
                 with (self.output_dir / "log.txt").open("a") as f:

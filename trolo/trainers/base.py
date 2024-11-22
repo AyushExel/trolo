@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Union, List
 import atexit
 import os
 
@@ -12,7 +12,8 @@ from ..loaders import YAMLConfig
 from ..loaders.maps import get_dataset_config_path, get_model_config_path
 from ..loaders.yaml_config import load_config, merge_dict
 from ..utils.smart_defaults import infer_pretrained_model
-
+from ..utils.logging.wandb import WandbLogger, wandb
+from ..utils.logging.metrics_logger import ExperimentLogger
 
 def to(m: nn.Module, device: str):
     if m is None:
@@ -37,6 +38,7 @@ class BaseTrainer(object):
         model: Optional[Union[str, Path, Dict]] = None,  # Model name, checkpoint path, config path, or config dict
         dataset: Optional[Union[str, Path, Dict]] = None,  # Dataset name, config path, or config dict
         pretrained_model: Optional[Union[str, Path]] = None,  # Path to pretrained model or model name
+        loggers: Optional[Union[List[ExperimentLogger], ExperimentLogger]] = None,
         **kwargs
     ):
         """Initialize trainer with flexible configuration options.
@@ -56,6 +58,7 @@ class BaseTrainer(object):
             pretrained_model: Path to pretrained model or model name - can be:
                     - Absolute path to checkpoint file
                     - Model name to load from default location
+            logger: ExperimentLogger instance
             **kwargs: Additional config overrides
         """
         if config is not None:
@@ -81,6 +84,41 @@ class BaseTrainer(object):
             50, 25, 75, 98, 153, 37, 73, 115, 132, 106, 61, 163, 134, 277, 81, 133, 18, 94, 30,
             169, 70, 328, 226
         ]
+
+        # Get unique output path and experiment name
+        output_path = self._get_unique_output_path(self.cfg.output_dir)
+        self.cfg.output_dir = str(output_path)  # Update config with unique path
+        experiment_name = output_path.name
+
+        if loggers is None:
+            self.loggers = []
+        else:
+            self.loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
+        
+        assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
+
+        self.loggers.append(WandbLogger(
+            project="trolo",
+            name=experiment_name,
+            config=self.cfg.__dict__
+        ))
+
+        ## Debugging
+        print(self.cfg)
+
+    def _get_unique_output_path(self, base_path: Union[str, Path]) -> Path:
+        """Get a unique output path by appending a counter if path exists"""
+        base_path = Path(base_path)
+        
+        if not base_path.exists():
+            return base_path
+        
+        counter = 1
+        while True:
+            new_path = base_path.parent / f"{base_path.name}_{counter}"
+            if not new_path.exists():
+                return new_path
+            counter += 1
 
     def _load_combined_config(self, config, **kwargs) -> YAMLConfig:
         """Load and validate a combined config."""

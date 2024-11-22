@@ -17,12 +17,12 @@ def test_annotations(dummy_dataset):
     # Test train annotations
     train_ann = COCO(str(dummy_dataset / "annotations/instances_train2017.json"))
     assert len(train_ann.getImgIds()) > 0
-    assert len(train_ann.getCatIds()) == 3
+    assert len(train_ann.getCatIds()) == 80
     
     # Test val annotations
     val_ann = COCO(str(dummy_dataset / "annotations/instances_val2017.json"))
     assert len(val_ann.getImgIds()) > 0
-    assert len(val_ann.getCatIds()) == 3
+    assert len(val_ann.getCatIds()) == 80
 
 def test_images(dummy_dataset):
     # Check if images exist and are valid

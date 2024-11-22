@@ -67,15 +67,17 @@ def test_predictor_inference(predictor, sample_image):
         result = predictor.predict(sample_image)
     
     # Check output format
+    assert isinstance(result, list)
+    assert len(result) == 1  # Single image input = single result
+    result = result[0]  # Get first prediction
+    
     assert isinstance(result, dict)
     assert all(k in result for k in ['boxes', 'scores', 'labels'])
     
     # Check output shapes
-    batch_size = 1
-    assert len(result['boxes'].shape) == 3  # (batch, num_boxes, 4)
-    assert len(result['scores'].shape) == 2  # (batch, num_boxes)
-    assert len(result['labels'].shape) == 2  # (batch, num_boxes)
-    assert result['boxes'].shape[0] == batch_size
+    assert len(result['boxes'].shape) == 2  # (num_boxes, 4)
+    assert len(result['scores'].shape) == 1  # (num_boxes,)
+    assert len(result['labels'].shape) == 1  # (num_boxes,)
     
     # Check value ranges
     assert result['scores'].min() >= 0 and result['scores'].max() <= 1
@@ -88,9 +90,10 @@ def test_batch_inference(predictor, sample_image):
     with torch.no_grad():
         result = predictor.predict(batch)
     
-    assert result['boxes'].shape[0] == 2
-    assert result['scores'].shape[0] == 2
-    assert result['labels'].shape[0] == 2
+    assert isinstance(result, list)
+    assert len(result) == 2
+    assert all(isinstance(pred, dict) for pred in result)
+    assert all(pred['boxes'].shape[0] == result[0]['boxes'].shape[0] for pred in result)
 
 @pytest.mark.parametrize("size", [(320, 320), (640, 480), (800, 600)])
 def test_different_input_sizes(predictor, sample_image, size):
@@ -101,8 +104,12 @@ def test_different_input_sizes(predictor, sample_image, size):
     with torch.no_grad():
         result = predictor.predict(resized_image)
     
+    # Get first prediction
+    result = result[0]
+    
     # Boxes should be scaled to input size (the resized dimensions)
-    assert result['boxes'].max() <= max(size)
+    assert result['boxes'][:, [0, 2]].max() <= size[0]  # x coordinates
+    assert result['boxes'][:, [1, 3]].max() <= size[1]  # y coordinates
 
 def test_invalid_inputs(predictor):
     """Test handling of invalid inputs"""
@@ -120,6 +127,9 @@ def test_confidence_thresholding(predictor, sample_image, conf_threshold):
     """Test detection confidence thresholding"""
     with torch.no_grad():
         result = predictor.predict(sample_image, conf_threshold=conf_threshold)
+    
+    # Get first prediction
+    result = result[0]
     
     # All detection scores should be above threshold
     assert (result['scores'] >= conf_threshold).all()
