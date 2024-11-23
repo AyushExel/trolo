@@ -16,6 +16,7 @@ dependencies = [
     "opencv-python",
     "Pillow",
     "pycocotools",
+    "tensorboard"
 ]
 
 [project.scripts]
