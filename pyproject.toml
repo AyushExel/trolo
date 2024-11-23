@@ -18,7 +18,8 @@ dependencies = [
     "pycocotools",
     "tensorboard",
     "faster_coco_eval",
-    "calflops"
+    "calflops",
+    "transformers"
 ]
 
 [project.scripts]
