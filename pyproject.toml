@@ -19,7 +19,9 @@ dependencies = [
     "tensorboard",
     "faster_coco_eval",
     "calflops",
-    "transformers"
+    "transformers",
+    "scipy",
+    "wandb"
 ]
 
 [project.scripts]
