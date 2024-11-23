@@ -103,8 +103,8 @@ class BaseTrainer(object):
             name=experiment_name,
                 config=self.cfg.__dict__
             ))
-        except ImportError:
-            print("Wandb is not installed. Please install it with `pip install wandb`.")
+        except Exception as e:
+            print(f"Wandb is not installed. Please install it with `pip install wandb`.")
 
         ## Debugging
         print(self.cfg)
