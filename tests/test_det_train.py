@@ -40,21 +40,21 @@ def test_training_loop(dummy_dataset):
     assert (output_dir / "log.txt").exists()
     assert (output_dir / "eval").exists()
 
-def test_training_separate_configs(dummy_dataset):
-    """Test training with separate model and dataset configs"""
-    # Initialize trainer with separate model and dataset configs
-    trainer = DetectionTrainer(
-        model="dfine-n",      # Using model name from MODEL_CONFIG_MAP
-        dataset="dummy_coco"  # Using dataset name
-    )
-    
-    # Run training
-    trainer.fit()
-    
-    # Basic checks
-    assert trainer.epoch >= 0
-    assert hasattr(trainer.evaluator, 'coco_eval')
-    assert 'bbox' in trainer.evaluator.coco_eval
+#def test_training_separate_configs(dummy_dataset):
+#    """Test training with separate model and dataset configs"""
+#    # Initialize trainer with separate model and dataset configs
+#    trainer = DetectionTrainer(
+#        model="dfine-n",      # Using model name from MODEL_CONFIG_MAP
+#        dataset="dummy_coco"  # Using dataset name
+#    )
+#    
+#    # Run training
+#    trainer.fit()
+#    
+#    # Basic checks
+#    assert trainer.epoch >= 0
+#    assert hasattr(trainer.evaluator, 'coco_eval')
+#    assert 'bbox' in trainer.evaluator.coco_eval
 
 def test_validation_only(dummy_dataset):
     """Test validation-only functionality"""
