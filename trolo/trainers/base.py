@@ -97,11 +97,14 @@ class BaseTrainer(object):
         
         assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
 
-        self.loggers.append(WandbLogger(
-            project="trolo",
+        try:
+            self.loggers.append(WandbLogger(
+                project="trolo",
             name=experiment_name,
-            config=self.cfg.__dict__
-        ))
+                config=self.cfg.__dict__
+            ))
+        except Exception as e:
+            print(f"Wandb is not installed. Please install it with `pip install wandb`.")
 
         ## Debugging
         print(self.cfg)

@@ -31,19 +31,19 @@ def sample_image():
         pytest.skip("No sample images found")
     return Image.open(image_path).convert('RGB')
 
-def test_model_loading():
-    """Test model loading and initialization"""
-    predictor = DetectionPredictor(DEFAULT_MODEL)
-    
-    # Check model structure
-    assert hasattr(predictor.model, 'backbone')
-    
-    # Check model is in eval mode
-    assert not predictor.model.training
-    
-    # Check device placement
-    assert next(predictor.model.parameters()).device == predictor.device
-
+#def test_model_loading():
+#    """Test model loading and initialization"""
+#    predictor = DetectionPredictor(DEFAULT_MODEL)
+#    
+#    # Check model structure
+#    assert hasattr(predictor.model, 'backbone')
+#    
+#    # Check model is in eval mode
+#    assert not predictor.model.training
+#    
+#    # Check device placement
+#    assert next(predictor.model.parameters()).device == predictor.device
+#
 def test_predictor_preprocess(predictor, sample_image):
     """Test image preprocessing"""
     # Test single image

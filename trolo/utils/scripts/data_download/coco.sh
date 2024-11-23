@@ -19,8 +19,8 @@ rm test2017.zip
 rm unlabeled2017.zip
 
 # Download and extract annotations
-mkdir -p annotations
-cd annotations
+#mkdir -p annotations
+#cd annotations
 
 wget http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 wget http://images.cocodataset.org/annotations/stuff_annotations_trainval2017.zip
