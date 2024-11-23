@@ -16,7 +16,6 @@ dependencies = [
     "opencv-python",
     "Pillow",
     "pycocotools",
-    "fast_coco_eval"
 ]
 
 [project.scripts]
