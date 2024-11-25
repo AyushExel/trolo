@@ -282,6 +282,7 @@ def infer_ddp_devices(device: str = None):
     - "cuda:0" or "cuda:1" etc. - Use specific GPU
     - 0 or 1 etc. - Use specific GPU
     - [0, 1] etc. - Use multiple GPUs
+    - "0,1,2" etc. - Use multiple GPUs specified as comma-separated string (e.g. "0,1,2" -> [0,1,2])
     - "cuda:all" - Use all GPUs
     """
     if device is None:
@@ -291,9 +292,15 @@ def infer_ddp_devices(device: str = None):
     if device == "cuda":
         return [0]
     if isinstance(device, (int, str)):
-        # Handle both integer inputs and string inputs like "0", "1"
+        # Handle both integer inputs and string inputs like "0", "1" and "0,1,2"
         if str(device).isdigit():
             return [int(device)]
+        # Handle comma-separated device string like "0,1,2"
+        if isinstance(device, str) and "," in device:
+            try:
+                return [int(d.strip()) for d in device.split(",")]
+            except ValueError:
+                raise ValueError(f"Invalid comma-separated device format: {device}")
         # Handle "cuda:X" format
         if device.startswith("cuda:"):
             if device == "cuda:all":

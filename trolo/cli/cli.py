@@ -14,7 +14,8 @@ def cli():
 @click.option('--model', '-m', type=str, default=None, help='Model name or path')
 @click.option('--dataset', '-d', type=str, default=None, help='Dataset name or path')
 @click.option('--pretrained', '-p', type=str, default=None, help='Pretrained model name or path')
-def train(config, model, dataset, pretrained, overrides={}):
+@click.option('--device', '-dev', type=str, default=None, help='Device specification')
+def train(config, model, dataset, pretrained, device, overrides={}):
     """Train a model using either combined config or separate model/dataset configs"""
 
     # Initialize trainer
@@ -27,7 +28,7 @@ def train(config, model, dataset, pretrained, overrides={}):
     )
     
     # Start training
-    trainer.fit()
+    trainer.fit(device=device)
 
 def main():
     cli()
