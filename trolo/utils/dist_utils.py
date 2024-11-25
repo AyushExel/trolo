@@ -274,3 +274,36 @@ def is_compile(model):
 
 def de_complie(model):
     return model._orig_mod if is_compile(model) else model
+
+def infer_ddp_devices(device: str = None):
+    """
+    Get the device ids for setting up ddp. User can specify the devices in following ways:
+    - "cuda" - Use 1st GPU
+    - "cuda:0" or "cuda:1" etc. - Use specific GPU
+    - 0 or 1 etc. - Use specific GPU
+    - [0, 1] etc. - Use multiple GPUs
+    - "cuda:all" - Use all GPUs
+    """
+    if device is None:
+        return [0] if torch.cuda.is_available() else ["cpu"]
+    if device == "cpu":
+        return ["cpu"]
+    if device == "cuda":
+        return [0]
+    if isinstance(device, (int, str)):
+        # Handle both integer inputs and string inputs like "0", "1"
+        if str(device).isdigit():
+            return [int(device)]
+        # Handle "cuda:X" format
+        if device.startswith("cuda:"):
+            if device == "cuda:all":
+                return list(range(torch.cuda.device_count()))
+            try:
+                return [int(device.split(":")[1])]
+            except (IndexError, ValueError):
+                raise ValueError(f"Invalid CUDA device format: {device}")
+    # Handle list of devices
+    if isinstance(device, list):
+        return [int(d) if isinstance(d, str) and d.isdigit() else d for d in device]
+    
+    raise ValueError(f"Invalid device specification: {device}")

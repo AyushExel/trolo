@@ -1,5 +1,5 @@
 __include__: [
-  '../dataset/dummy_coco.yml',
+  '../dataset/coco_detection.yml',
   '../runtime.yml',
   './include/dataloader.yml',
   './include/optimizer.yml',
@@ -66,9 +66,9 @@ optimizer:
 
 
 # Increase to search for the optimal ema
-epoches: 10 # 148 + 4n
+epoches: 160 # 148 + 4n
 train_dataloader:
-  total_batch_size: 128
+  total_batch_size: 32
   dataset:
     transforms:
       policy:
@@ -79,4 +79,4 @@ train_dataloader:
     base_size_repeat: ~
 
 val_dataloader:
-  total_batch_size: 256
+  total_batch_size: 64

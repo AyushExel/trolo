@@ -50,7 +50,8 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
     local_path = model_dir / model_path
     
     if local_path.exists():
-        return str(local_path)
+        # Return the absolute path
+        return str(local_path.resolve())
         
     # If model name is in hub models list, download it
     if model_path in HUB_MODELS:
@@ -59,7 +60,7 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
         pass
         
         if local_path.exists():
-            return str(local_path)
+            return str(local_path.resolve())
             
     raise FileNotFoundError(
         f"Could not find model at {model_path} or in default model directory. "
