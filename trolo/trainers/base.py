@@ -40,7 +40,7 @@ class BaseTrainer(object):
         dataset: Optional[Union[str, Path, Dict]] = None,  # Dataset name, config path, or config dict
         pretrained_model: Optional[Union[str, Path]] = None,  # Path to pretrained model or model name
         loggers: Optional[Union[List[ExperimentLogger], ExperimentLogger]] = None,
-        overrides: Optional[Dict[str, Any]] = None
+        **overrides
     ):
         """Initialize trainer with flexible configuration options.
         
@@ -66,13 +66,13 @@ class BaseTrainer(object):
         if config is not None:
             if model is not None or dataset is not None:
                 raise ValueError("Cannot specify both combined config and separate model/dataset configs")
-            self.cfg = self._load_combined_config(config, overrides=overrides)
+            self.cfg = self._load_combined_config(config, **overrides)
         elif model is not None or dataset is not None:
             if model is None:
                 raise ValueError("Must specify model when using separate configs")
             if dataset is None:
                 raise ValueError("Must specify dataset when using separate configs")
-            self.cfg = self._load_separate_configs(model, dataset, overrides=overrides)
+            self.cfg = self._load_separate_configs(model, dataset, **overrides)
         else:
             raise ValueError("Must specify either config or both model and dataset")
         
@@ -125,7 +125,7 @@ class BaseTrainer(object):
                 return new_path
             counter += 1
 
-    def _load_combined_config(self, config, overrides: Optional[Dict[str, Any]] = None) -> YAMLConfig:
+    def _load_combined_config(self, config, **overrides) -> YAMLConfig:
         """Load and validate a combined config."""
         if isinstance(config, str) and not config.endswith('.yml'):
             cfg_path = get_model_config_path(config)
@@ -140,7 +140,7 @@ class BaseTrainer(object):
         
         return cfg
 
-    def _load_separate_configs(self, model, dataset, overrides: Optional[Dict[str, Any]] = None) -> YAMLConfig:
+    def _load_separate_configs(self, model, dataset, **overrides) -> YAMLConfig:
         """Load and merge separate model and dataset configs."""
         # Load model config
         if isinstance(model, str) and not model.endswith('.yml'):
@@ -177,7 +177,7 @@ class BaseTrainer(object):
         print("Dataset config transforms:", dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms'))
 
         # Merge configs
-        cfg = YAMLConfig.merge_configs(model_config, dataset_config, overrides=overrides)
+        cfg = YAMLConfig.merge_configs(model_config, dataset_config, **overrides)
         print("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
         
         return cfg
