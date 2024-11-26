@@ -10,7 +10,7 @@ from .base import BaseTrainer
 from .det_engine import train_one_epoch, evaluate
 
 from pathlib import Path
-from typing import Union, Optional, Dict, List
+from typing import Union, Optional, Dict, List, Any
 from trolo.utils.logging import WandbLogger, ExperimentLogger
 
 class DetectionTrainer(BaseTrainer):
@@ -22,7 +22,7 @@ class DetectionTrainer(BaseTrainer):
         dataset: Optional[Union[str, Path, Dict]] = None,
         pretrained_model: Optional[Union[str, Path]] = None,
         loggers: Optional[List[ExperimentLogger]] = None,
-        **kwargs
+        overrides: Optional[Dict[str, Any]] = None
     ):
         """Initialize detection trainer.
         
@@ -49,15 +49,15 @@ class DetectionTrainer(BaseTrainer):
             dataset=dataset,
             pretrained_model=pretrained_model,
             loggers=loggers,
-            **kwargs
+            overrides=overrides
         )
         
         if not self.cfg.task == "detection":
             raise ValueError("DetectionTrainer requires task='detection' in config")
 
 
-    def fit(self, ):
-        self.train()
+    def fit(self, device: str = None):
+        self.train(device)
         args = self.cfg
 
         n_parameters, model_stats = stats(self.cfg)
@@ -203,8 +203,9 @@ class DetectionTrainer(BaseTrainer):
                     for name, value in zip(metric_names, coco_evaluator.coco_eval["bbox"].stats.tolist())
                 })
 
-            for logger in self.loggers:
-                logger.log_metrics(log_stats, epoch)
+            if self.loggers:
+                for logger in self.loggers:
+                    logger.log_metrics(log_stats, epoch)
 
             if self.output_dir and dist_utils.is_main_process():
                 with (self.output_dir / "log.txt").open("a") as f:

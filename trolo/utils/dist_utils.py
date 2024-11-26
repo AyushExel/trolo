@@ -162,14 +162,22 @@ def de_model(model):
 
 def warp_loader(loader, shuffle=False):
     if is_dist_available_and_initialized():
-        sampler = DistributedSampler(loader.dataset, shuffle=shuffle)
-        loader = DataLoader(loader.dataset,
-                            loader.batch_size,
-                            sampler=sampler,
-                            drop_last=loader.drop_last,
-                            collate_fn=loader.collate_fn,
-                            pin_memory=loader.pin_memory,
-                            num_workers=loader.num_workers)
+        sampler = DistributedSampler(
+            loader.dataset, 
+            shuffle=shuffle,
+        )
+        
+        # Create new dataloader with distributed sampler
+        loader = DataLoader(
+            dataset=loader.dataset,
+            batch_size=loader.batch_size,
+            sampler=sampler,
+            drop_last=loader.drop_last,
+            num_workers=loader.num_workers,
+            collate_fn=loader.collate_fn,
+            pin_memory=loader.pin_memory,
+            multiprocessing_context='fork'  # Use fork context for better compatibility
+        )
     return loader
 
 
@@ -274,3 +282,43 @@ def is_compile(model):
 
 def de_complie(model):
     return model._orig_mod if is_compile(model) else model
+
+def infer_ddp_devices(device: str = None):
+    """
+    Get the device ids for setting up ddp. User can specify the devices in following ways:
+    - "cuda" - Use 1st GPU
+    - "cuda:0" or "cuda:1" etc. - Use specific GPU
+    - 0 or 1 etc. - Use specific GPU
+    - [0, 1] etc. - Use multiple GPUs
+    - "0,1,2" etc. - Use multiple GPUs specified as comma-separated string (e.g. "0,1,2" -> [0,1,2])
+    - "cuda:all" - Use all GPUs
+    """
+    if device is None:
+        return [0] if torch.cuda.is_available() else ["cpu"]
+    if device == "cpu":
+        return ["cpu"]
+    if device == "cuda":
+        return [0]
+    if isinstance(device, (int, str)):
+        # Handle both integer inputs and string inputs like "0", "1" and "0,1,2"
+        if str(device).isdigit():
+            return [int(device)]
+        # Handle comma-separated device string like "0,1,2"
+        if isinstance(device, str) and "," in device:
+            try:
+                return [int(d.strip()) for d in device.split(",")]
+            except ValueError:
+                raise ValueError(f"Invalid comma-separated device format: {device}")
+        # Handle "cuda:X" format
+        if device.startswith("cuda:"):
+            if device == "cuda:all":
+                return list(range(torch.cuda.device_count()))
+            try:
+                return [int(device.split(":")[1])]
+            except (IndexError, ValueError):
+                raise ValueError(f"Invalid CUDA device format: {device}")
+    # Handle list of devices
+    if isinstance(device, list):
+        return [int(d) if isinstance(d, str) and d.isdigit() else d for d in device]
+    
+    raise ValueError(f"Invalid device specification: {device}")

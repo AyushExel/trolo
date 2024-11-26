@@ -10,29 +10,25 @@ def cli():
     pass
 
 @cli.command()
-@click.option('--config', '-c', type=str, help='Config name or path')
-@click.option('--model', '-m', type=str, help='Model name or path')
-@click.option('--dataset', '-d', type=str, help='Dataset name or path')
-@click.option('--pretrained', '-p', type=str, help='Pretrained model name or path')
-@click.option('--device', type=str, default=None, help='Device to run on (cpu/cuda)')
-@click.argument('args', nargs=-1)
-def train(config, model, dataset, pretrained, device, args):
+@click.option('--config', '-c', type=str, default=None, help='Config name or path')
+@click.option('--model', '-m', type=str, default=None, help='Model name or path')
+@click.option('--dataset', '-d', type=str, default=None, help='Dataset name or path')
+@click.option('--pretrained', '-p', type=str, default=None, help='Pretrained model name or path')
+@click.option('--device', '-dev', type=str, default=None, help='Device specification')
+def train(config, model, dataset, pretrained, device, overrides={}):
     """Train a model using either combined config or separate model/dataset configs"""
-    # Convert args to kwargs
-    kwargs = dict(arg.split('=') for arg in args if '=' in arg)
-    
+
     # Initialize trainer
     trainer = DetectionTrainer(
         config=config,
         model=model,
         dataset=dataset,
         pretrained_model=pretrained,
-        device=device or infer_device(),
-        **kwargs
+        overrides=overrides
     )
     
     # Start training
-    trainer.fit()
+    trainer.fit(device=device)
 
 def main():
     cli()

@@ -24,3 +24,4 @@ output/
 *.jpg
 test.py
 wandb/
+env_exp/

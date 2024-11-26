@@ -118,6 +118,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ### Immidiate TODOs
 - [ ] Add support for training with passing model and dataset configs separately
+- [ ] Allow overriding default nested configs with custom ones in trainer or CLI
+- [ ] Add CLI and Pythonic DDP support
 - [ ] 1-step multi-GPU training, by simply passing the number of GPUs to the CLI, and the trainer
 - [ ] W&B logging
 - [ ] Unit tests

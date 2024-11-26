@@ -1,11 +1,14 @@
 import torch
+import yaml
 import torch.nn as nn
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Union, List
+from typing import Dict, Optional, Union, List, Any
 import atexit
 import os
+import sys
+import subprocess
 
 from ..utils import dist_utils
 from ..loaders import YAMLConfig
@@ -39,7 +42,7 @@ class BaseTrainer(object):
         dataset: Optional[Union[str, Path, Dict]] = None,  # Dataset name, config path, or config dict
         pretrained_model: Optional[Union[str, Path]] = None,  # Path to pretrained model or model name
         loggers: Optional[Union[List[ExperimentLogger], ExperimentLogger]] = None,
-        **kwargs
+        **overrides
     ):
         """Initialize trainer with flexible configuration options.
         
@@ -58,24 +61,28 @@ class BaseTrainer(object):
             pretrained_model: Path to pretrained model or model name - can be:
                     - Absolute path to checkpoint file
                     - Model name to load from default location
-            logger: ExperimentLogger instance
+            device: Device to run on (cpu/cuda)
+            loggers: ExperimentLogger instance
             **kwargs: Additional config overrides
         """
+        self.cfg_path = None
         if config is not None:
             if model is not None or dataset is not None:
                 raise ValueError("Cannot specify both combined config and separate model/dataset configs")
-            self.cfg = self._load_combined_config(config, **kwargs)
+            self.cfg = self._load_combined_config(config, **overrides)
         elif model is not None or dataset is not None:
             if model is None:
                 raise ValueError("Must specify model when using separate configs")
             if dataset is None:
                 raise ValueError("Must specify dataset when using separate configs")
-            self.cfg = self._load_separate_configs(model, dataset, **kwargs)
+            self.cfg = self._load_separate_configs(model, dataset, **overrides)
         else:
             raise ValueError("Must specify either config or both model and dataset")
         
         if pretrained_model is not None:
             self.cfg.tuning = infer_pretrained_model(pretrained_model)
+        
+        self.forward_loggers = loggers
         
         self.obj365_ids = [
             0, 46, 5, 58, 114, 55, 116, 65, 21, 40, 176, 127, 249, 24, 56, 139, 92, 78, 99, 96,
@@ -85,29 +92,40 @@ class BaseTrainer(object):
             169, 70, 328, 226
         ]
 
+
+        if config is not None and self.cfg_path is None:
+            raise ValueError("cfg_path is None while config is provided. This should never happen.")
+        
+        ## Debugging
+        print(self.cfg)
+
+    def _init_loggers(self):
+        loggers = self.forward_loggers
+        if loggers is None:
+            loggers = []
+        else:
+            loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
+        
         # Get unique output path and experiment name
         output_path = self._get_unique_output_path(self.cfg.output_dir)
         self.cfg.output_dir = str(output_path)  # Update config with unique path
         experiment_name = output_path.name
 
-        if loggers is None:
-            self.loggers = []
+        # only attach loggers if we're the main process of DDP or running without DDP or on CPU
+        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+            try:
+                loggers.append(WandbLogger(
+                    project="trolo",
+                    name=experiment_name,
+                    config=self.cfg.__dict__
+                ))
+            except Exception as e:
+                print(f"Wandb is not installed. Please install it with `pip install wandb`.")
+            self.loggers = loggers
+            assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
         else:
-            self.loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
-        
-        assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
+            self.loggers = []
 
-        try:
-            self.loggers.append(WandbLogger(
-                project="trolo",
-            name=experiment_name,
-                config=self.cfg.__dict__
-            ))
-        except Exception as e:
-            print(f"Wandb is not installed. Please install it with `pip install wandb`.")
-
-        ## Debugging
-        print(self.cfg)
 
     def _get_unique_output_path(self, base_path: Union[str, Path]) -> Path:
         """Get a unique output path by appending a counter if path exists"""
@@ -123,22 +141,23 @@ class BaseTrainer(object):
                 return new_path
             counter += 1
 
-    def _load_combined_config(self, config, **kwargs) -> YAMLConfig:
+    def _load_combined_config(self, config, **overrides) -> YAMLConfig:
         """Load and validate a combined config."""
         if isinstance(config, str) and not config.endswith('.yml'):
             cfg_path = get_model_config_path(config)
-            cfg = YAMLConfig(cfg_path, **kwargs)
+            cfg = YAMLConfig(cfg_path, **overrides)
         elif isinstance(config, (str, Path)):
             cfg_path = config
-            cfg = YAMLConfig(cfg_path, **kwargs)
+            cfg = YAMLConfig(cfg_path, **overrides)
         elif isinstance(config, dict):
-            cfg = YAMLConfig.from_dict(config, **kwargs)
+            cfg = YAMLConfig.from_state_dict(config)
         else:
             raise TypeError(f"Unsupported config type: {type(config)}")
         
+        self.cfg_path = str(cfg_path)
         return cfg
 
-    def _load_separate_configs(self, model, dataset, **kwargs) -> YAMLConfig:
+    def _load_separate_configs(self, model, dataset, **overrides) -> YAMLConfig:
         """Load and merge separate model and dataset configs."""
         # Load model config
         if isinstance(model, str) and not model.endswith('.yml'):
@@ -175,7 +194,7 @@ class BaseTrainer(object):
         print("Dataset config transforms:", dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms'))
 
         # Merge configs
-        cfg = YAMLConfig.merge_configs(model_config, dataset_config, **kwargs)
+        cfg = YAMLConfig.merge_configs(model_config, dataset_config, **overrides)
         print("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
         
         return cfg
@@ -274,6 +293,7 @@ class BaseTrainer(object):
 
     def _setup(self):
         """Avoid instantiating unnecessary classes"""
+        self._init_loggers()
         self.check_and_download_dataset()
         self._validate_config(self.cfg)
         
@@ -316,9 +336,50 @@ class BaseTrainer(object):
         if self.writer:
             atexit.register(self.writer.close)
 
-    def train(self):
+    def train(self, device: str = None):
+        """Train the model using either single GPU or DDP based on device specification
         
-        self._setup()
+        Args:
+            device: Device specification. Can be:
+                - None (defaults to first available GPU or CPU)
+                - "cpu" for CPU training
+                - "cuda" or "cuda:N" for single GPU
+                - List of GPU ids for DDP training
+        """
+        # Get device(s) based on specification
+        devices = dist_utils.infer_ddp_devices(device)
+        
+        # Check if we're already in a distributed environment
+        is_distributed = dist_utils.is_dist_available_and_initialized()
+        
+        if devices == ["cpu"]:
+            # CPU training
+            print("Training on CPU")
+            self._setup()
+            self._prepare_training()
+            
+        elif len(devices) == 1 and not is_distributed:
+            # Single GPU training
+            print(f"Training on single GPU: {devices[0]}")
+            os.environ["CUDA_VISIBLE_DEVICES"] = str(devices[0])
+            self._setup() 
+            self._prepare_training()
+            
+        elif len(devices) > 1 and not is_distributed:
+            # Launch DDP training only if we're not already in a distributed environment
+            print(f"Launching DDP training on GPUs: {devices}")
+            device_str = ",".join(map(str, devices))
+            self.execute_ddp(device_str)
+            return  # Return after DDP launch as the parent process doesn't need to continue
+            
+        else:
+            # We're already in a distributed environment, proceed with normal setup
+            print(f"Setting up DDP worker process")
+            self._setup()
+            self._prepare_training()
+
+    def _prepare_training(self):
+        """Setup training-specific components"""
         self.optimizer = self.cfg.optimizer
         self.lr_scheduler = self.cfg.lr_scheduler
         self.lr_warmup_scheduler = self.cfg.lr_warmup_scheduler
@@ -332,10 +393,89 @@ class BaseTrainer(object):
 
         self.evaluator = self.cfg.evaluator
 
-        # NOTE: Instantiating order
         if self.cfg.resume:
             print(f'Resume checkpoint from {self.cfg.resume}')
             self.load_resume_state(self.cfg.resume)
+
+    def execute_ddp(self, device: str):
+        """Execute distributed training on specified devices"""
+        # Create output directories
+        tmp_dir = Path(self.cfg.output_dir) / 'tmp'
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create unique training file
+        timestamp = datetime.now().isoformat().replace(':', '-')
+        tmp_file = tmp_dir / f'train_{timestamp}.py'
+        tmp_config = tmp_dir / f'{tmp_file.stem}_config.yml'
+        
+        # Save config
+        with open(tmp_config, 'w') as f:
+            if "__include__" in self.cfg.yaml_cfg:
+                cfg_dir = Path(self.cfg_path).parent
+                paths = [str((cfg_dir / p).resolve()) for p in self.cfg.yaml_cfg["__include__"]]
+                self.cfg.yaml_cfg["__include__"] = paths
+            yaml.dump(self.cfg.yaml_cfg, f)
+        
+        # Create training script with improved process initialization
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            f.write(f'''
+import os
+import torch
+from pathlib import Path
+from trolo.trainers import DetectionTrainer
+from trolo.utils import dist_utils
+
+def main():
+    # Set multiprocessing start method
+    if torch.cuda.is_available():
+        torch.multiprocessing.set_start_method('spawn', force=True)
+    
+    # Setup distributed environment
+    dist_utils.setup_distributed(seed=0)
+    
+    # Load config from the saved yaml
+    config_path = "{tmp_config.absolute()}"
+    if not Path(config_path).exists():
+        raise FileNotFoundError(f"Config file not found: {{config_path}}")
+
+    # Initialize trainer with the saved config
+    trainer = DetectionTrainer(config=config_path)
+    trainer._setup()
+    trainer._prepare_training()
+    
+    try:
+        trainer.fit()
+    finally:
+        dist_utils.cleanup()
+
+if __name__ == "__main__":
+    main()
+''')
+
+        # Set CUDA devices and run DDP training with additional environment variables
+        num_gpus = len(device.split(','))
+        env = os.environ.copy()
+        env.update({
+            'CUDA_VISIBLE_DEVICES': device,
+            'PYTHONPATH': os.pathsep.join(sys.path),
+            'OMP_NUM_THREADS': '1',  # Prevent OpenMP runtime issues
+            'NCCL_DEBUG': 'INFO'     # Help debug NCCL issues
+        })
+        
+        cmd = f'torchrun --nproc_per_node={num_gpus} --master_port 7777 {tmp_file}'
+        
+        try:
+            print(f"Executing DDP command: {cmd}")
+            subprocess.run(cmd, env=env, shell=True, check=True)
+        finally:
+            # Cleanup temporary files
+            print("Cleaning up temporary files...")
+            tmp_file.unlink(missing_ok=True)
+            tmp_config.unlink(missing_ok=True)
+            try:
+                tmp_dir.rmdir()
+            except OSError:
+                pass
 
     def eval(self):
         self._setup()

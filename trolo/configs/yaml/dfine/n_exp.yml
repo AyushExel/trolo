@@ -3,7 +3,7 @@ __include__: [
   '../runtime.yml',
   './include/dataloader.yml',
   './include/optimizer.yml',
-  './include/dfine_hgnetv2.yml',
+  './include/back_exp.yml',
 ]
 
 output_dir: ./output/dfine_hgnetv2_n_coco
@@ -34,17 +34,8 @@ HybridEncoder:
   depth_mult: 0.5
 
 
-DFINETransformer:
-  feat_channels: [128, 128]
-  feat_strides: [16, 32]
-  hidden_dim: 128
-  dim_feedforward: 512
-  num_levels: 2
-
-  num_layers: 3
-  eval_idx: -1
-
-  num_points: [6, 6]
+RTDETRTransformerv2:
+  num_layers: 6
 
 optimizer:
   type: AdamW
@@ -66,7 +57,7 @@ optimizer:
 
 
 # Increase to search for the optimal ema
-epoches: 10 # 148 + 4n
+epoches: 160 # 148 + 4n
 train_dataloader:
   total_batch_size: 128
   dataset:
