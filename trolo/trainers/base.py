@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Dict, Optional, Union, List, Any
 import atexit
 import os
+import sys
+import subprocess
 
 from ..utils import dist_utils
 from ..loaders import YAMLConfig
@@ -63,6 +65,7 @@ class BaseTrainer(object):
             loggers: ExperimentLogger instance
             **kwargs: Additional config overrides
         """
+        self.cfg_path = None
         if config is not None:
             if model is not None or dataset is not None:
                 raise ValueError("Cannot specify both combined config and separate model/dataset configs")
@@ -93,21 +96,29 @@ class BaseTrainer(object):
         experiment_name = output_path.name
 
         if loggers is None:
-            self.loggers = []
+            loggers = []
         else:
-            self.loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
+            loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
         
-        assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
 
-        try:
-            self.loggers.append(WandbLogger(
-                project="trolo",
-            name=experiment_name,
-                config=self.cfg.__dict__
-            ))
-        except Exception as e:
-            print(f"Wandb is not installed. Please install it with `pip install wandb`.")
+        # only attach loggers if we're the main process of DDP or running without DDP or on CPU
+        if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
+            try:
+                loggers.append(WandbLogger(
+                    project="trolo",
+                    name=experiment_name,
+                    config=self.cfg.__dict__
+                ))
+            except Exception as e:
+                print(f"Wandb is not installed. Please install it with `pip install wandb`.")
+            self.loggers = loggers
+            assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
+        else:
+            self.loggers = []
 
+        if config is not None and self.cfg_path is None:
+            raise ValueError("cfg_path is None while config is provided. This should never happen.")
+        
         ## Debugging
         print(self.cfg)
 
@@ -138,6 +149,7 @@ class BaseTrainer(object):
         else:
             raise TypeError(f"Unsupported config type: {type(config)}")
         
+        self.cfg_path = str(cfg_path)
         return cfg
 
     def _load_separate_configs(self, model, dataset, **overrides) -> YAMLConfig:
@@ -380,66 +392,84 @@ class BaseTrainer(object):
             self.load_resume_state(self.cfg.resume)
 
     def execute_ddp(self, device: str):
-        """Execute distributed training on specified devices
-        
-        Args:
-            device: Comma-separated string of GPU indices
-        """
+        """Execute distributed training on specified devices"""
         # Create output directories
         tmp_dir = Path(self.cfg.output_dir) / 'tmp'
         tmp_dir.mkdir(parents=True, exist_ok=True)
         
         # Create unique training file
-        timestamp = datetime.now().isoformat().replace(':', '-')  # Make filename safe
+        timestamp = datetime.now().isoformat().replace(':', '-')
         tmp_file = tmp_dir / f'train_{timestamp}.py'
         tmp_config = tmp_dir / f'{tmp_file.stem}_config.yml'
         
         # Save config
         with open(tmp_config, 'w') as f:
+            if "__include__" in self.cfg.yaml_cfg:
+                cfg_dir = Path(self.cfg_path).parent
+                paths = [str((cfg_dir / p).resolve()) for p in self.cfg.yaml_cfg["__include__"]]
+                self.cfg.yaml_cfg["__include__"] = paths
             yaml.dump(self.cfg.yaml_cfg, f)
         
-        # Create training script
-        with open(tmp_file, 'w') as f:
-            f.write('''
-                    import os
-                    from pathlib import Path
-                    from trolo.trainers import DetectionTrainer
-                    from trolo.utils import dist_utils
+        # Create training script with improved process initialization
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            f.write(f'''
+import os
+import torch
+from pathlib import Path
+from trolo.trainers import DetectionTrainer
+from trolo.utils import dist_utils
 
-                    def main():
-                        # Setup distributed environment
-                        dist_utils.setup_distributed(seed=0)
-                        
-                        # Load config from the saved yaml
-                        config_path = "{}"
-                        if not Path(config_path).exists():
-                            raise FileNotFoundError(f"Config file not found: {{config_path}}")
+def main():
+    # Set multiprocessing start method
+    if torch.cuda.is_available():
+        torch.multiprocessing.set_start_method('spawn', force=True)
     
-                        # Initialize trainer with the saved config
-                        trainer = DetectionTrainer(config=config_path)
-                        trainer.fit()
-                        dist_utils.cleanup()
+    # Setup distributed environment
+    dist_utils.setup_distributed(seed=0)
+    
+    # Load config from the saved yaml
+    config_path = "{tmp_config.absolute()}"
+    if not Path(config_path).exists():
+        raise FileNotFoundError(f"Config file not found: {{config_path}}")
 
-                    if __name__ == "__main__":
-                        main()
-            '''.format(tmp_config))
+    # Initialize trainer with the saved config
+    trainer = DetectionTrainer(config=config_path)
+    trainer._setup()
+    trainer._prepare_training()
+    
+    try:
+        trainer.fit()
+    finally:
+        dist_utils.cleanup()
 
-        # Set CUDA devices and run DDP training
+if __name__ == "__main__":
+    main()
+''')
+
+        # Set CUDA devices and run DDP training with additional environment variables
         num_gpus = len(device.split(','))
-        cmd = f'CUDA_VISIBLE_DEVICES={device} torchrun --nproc_per_node={num_gpus} --master_port 12321 python {tmp_file}'
+        env = os.environ.copy()
+        env.update({
+            'CUDA_VISIBLE_DEVICES': device,
+            'PYTHONPATH': os.pathsep.join(sys.path),
+            'OMP_NUM_THREADS': '1',  # Prevent OpenMP runtime issues
+            'NCCL_DEBUG': 'INFO'     # Help debug NCCL issues
+        })
+        
+        cmd = f'torchrun --nproc_per_node={num_gpus} --master_port 7777 {tmp_file}'
         
         try:
             print(f"Executing DDP command: {cmd}")
-            os.system(cmd)
+            subprocess.run(cmd, env=env, shell=True, check=True)
         finally:
             # Cleanup temporary files
             print("Cleaning up temporary files...")
             tmp_file.unlink(missing_ok=True)
             tmp_config.unlink(missing_ok=True)
             try:
-                tmp_dir.rmdir()  # Try to remove tmp dir if empty
+                tmp_dir.rmdir()
             except OSError:
-                pass  # Ignore if directory is not empty
+                pass
 
     def eval(self):
         self._setup()

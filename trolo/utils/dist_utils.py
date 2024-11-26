@@ -162,14 +162,22 @@ def de_model(model):
 
 def warp_loader(loader, shuffle=False):
     if is_dist_available_and_initialized():
-        sampler = DistributedSampler(loader.dataset, shuffle=shuffle)
-        loader = DataLoader(loader.dataset,
-                            loader.batch_size,
-                            sampler=sampler,
-                            drop_last=loader.drop_last,
-                            collate_fn=loader.collate_fn,
-                            pin_memory=loader.pin_memory,
-                            num_workers=loader.num_workers)
+        sampler = DistributedSampler(
+            loader.dataset, 
+            shuffle=shuffle,
+        )
+        
+        # Create new dataloader with distributed sampler
+        loader = DataLoader(
+            dataset=loader.dataset,
+            batch_size=loader.batch_size,
+            sampler=sampler,
+            drop_last=loader.drop_last,
+            num_workers=loader.num_workers,
+            collate_fn=loader.collate_fn,
+            pin_memory=loader.pin_memory,
+            multiprocessing_context='fork'  # Use fork context for better compatibility
+        )
     return loader
 
 
