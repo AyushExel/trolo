@@ -82,6 +82,8 @@ class BaseTrainer(object):
         if pretrained_model is not None:
             self.cfg.tuning = infer_pretrained_model(pretrained_model)
         
+        self.forward_loggers = loggers
+        
         self.obj365_ids = [
             0, 46, 5, 58, 114, 55, 116, 65, 21, 40, 176, 127, 249, 24, 56, 139, 92, 78, 99, 96,
             144, 295, 178, 180, 38, 39, 13, 43, 120, 219, 148, 173, 165, 154, 137, 113, 145, 146,
@@ -90,16 +92,24 @@ class BaseTrainer(object):
             169, 70, 328, 226
         ]
 
-        # Get unique output path and experiment name
-        output_path = self._get_unique_output_path(self.cfg.output_dir)
-        self.cfg.output_dir = str(output_path)  # Update config with unique path
-        experiment_name = output_path.name
 
+        if config is not None and self.cfg_path is None:
+            raise ValueError("cfg_path is None while config is provided. This should never happen.")
+        
+        ## Debugging
+        print(self.cfg)
+
+    def _init_loggers(self):
+        loggers = self.forward_loggers
         if loggers is None:
             loggers = []
         else:
             loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
         
+        # Get unique output path and experiment name
+        output_path = self._get_unique_output_path(self.cfg.output_dir)
+        self.cfg.output_dir = str(output_path)  # Update config with unique path
+        experiment_name = output_path.name
 
         # only attach loggers if we're the main process of DDP or running without DDP or on CPU
         if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
@@ -116,11 +126,6 @@ class BaseTrainer(object):
         else:
             self.loggers = []
 
-        if config is not None and self.cfg_path is None:
-            raise ValueError("cfg_path is None while config is provided. This should never happen.")
-        
-        ## Debugging
-        print(self.cfg)
 
     def _get_unique_output_path(self, base_path: Union[str, Path]) -> Path:
         """Get a unique output path by appending a counter if path exists"""
@@ -288,6 +293,7 @@ class BaseTrainer(object):
 
     def _setup(self):
         """Avoid instantiating unnecessary classes"""
+        self._init_loggers()
         self.check_and_download_dataset()
         self._validate_config(self.cfg)
         
