@@ -203,8 +203,9 @@ class DetectionTrainer(BaseTrainer):
                     for name, value in zip(metric_names, coco_evaluator.coco_eval["bbox"].stats.tolist())
                 })
 
-            for logger in self.loggers if logger else []:
-                logger.log_metrics(log_stats, epoch)
+            if self.loggers:
+                for logger in self.loggers:
+                    logger.log_metrics(log_stats, epoch)
 
             if self.output_dir and dist_utils.is_main_process():
                 with (self.output_dir / "log.txt").open("a") as f:
