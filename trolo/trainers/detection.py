@@ -16,6 +16,7 @@ from .det_engine import train_one_epoch, evaluate
 from pathlib import Path
 from typing import Union, Optional, Dict, List, Any
 from trolo.utils.logging import WandbLogger, ExperimentLogger
+from datetime import datetime, timedelta
 
 class DetectionTrainer(BaseTrainer):
     """Detection specific trainer implementation"""
@@ -227,7 +228,7 @@ class DetectionTrainer(BaseTrainer):
                                     self.output_dir / "eval" / name)
 
         total_time = time.time() - start_time
-        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+        total_time_str = str(timedelta(seconds=int(total_time)))
         print('Training time {}'.format(total_time_str))
 
 
