@@ -22,7 +22,7 @@ class DetectionTrainer(BaseTrainer):
         dataset: Optional[Union[str, Path, Dict]] = None,
         pretrained_model: Optional[Union[str, Path]] = None,
         loggers: Optional[List[ExperimentLogger]] = None,
-        overrides: Optional[Dict[str, Any]] = None
+        **overrides
     ):
         """Initialize detection trainer.
         
@@ -49,7 +49,7 @@ class DetectionTrainer(BaseTrainer):
             dataset=dataset,
             pretrained_model=pretrained_model,
             loggers=loggers,
-            overrides=overrides
+            **overrides
         )
         
         if not self.cfg.task == "detection":
