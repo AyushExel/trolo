@@ -1,7 +1,11 @@
 import time
 import json
 import datetime
-
+import subprocess
+import os
+import sys
+import yaml
+import socket
 import torch
 
 from ..utils import dist_utils, stats
@@ -238,3 +242,89 @@ class DetectionTrainer(BaseTrainer):
             dist_utils.save_on_master(coco_evaluator.coco_eval["bbox"].eval, self.output_dir / "eval.pth")
 
         return
+    
+    def execute_ddp(self, device: str):
+        """Execute distributed training on specified devices"""
+        # Create output directories
+        tmp_dir = Path(self.cfg.output_dir) / 'tmp'
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create unique training file
+        timestamp = datetime.now().isoformat().replace(':', '-')
+        tmp_file = tmp_dir / f'train_{timestamp}.py'
+        tmp_config = tmp_dir / f'{tmp_file.stem}_config.yml'
+        
+        # Save config
+        with open(tmp_config, 'w') as f:
+            if "__include__" in self.cfg.yaml_cfg:
+                cfg_dir = Path(self.cfg_path).parent
+                paths = [str((cfg_dir / p).resolve()) for p in self.cfg.yaml_cfg["__include__"]]
+                self.cfg.yaml_cfg["__include__"] = paths
+            yaml.dump(self.cfg.yaml_cfg, f)
+        
+        # Create training script with improved process initialization
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            f.write(f'''
+import os
+import torch
+from pathlib import Path
+from trolo.trainers import DetectionTrainer
+from trolo.utils import dist_utils
+
+def main():
+    # Set multiprocessing start method
+    if torch.cuda.is_available():
+        torch.multiprocessing.set_start_method('spawn', force=True)
+    
+    # Setup distributed environment
+    dist_utils.setup_distributed(seed=0)
+    
+    # Load config from the saved yaml
+    config_path = "{tmp_config.absolute()}"
+    if not Path(config_path).exists():
+        raise FileNotFoundError(f"Config file not found: {{config_path}}")
+
+    # Initialize trainer with the saved config
+    trainer = DetectionTrainer(config=config_path)
+    trainer._setup()
+    trainer._prepare_training()
+    
+    try:
+        trainer.fit()
+    finally:
+        dist_utils.cleanup()
+
+if __name__ == "__main__":
+    main()
+''')
+
+        # Set CUDA devices and run DDP training with additional environment variables
+        num_gpus = len(device.split(','))
+        env = os.environ.copy()
+        env.update({
+            'CUDA_VISIBLE_DEVICES': device,
+            'PYTHONPATH': os.pathsep.join(sys.path),
+            'OMP_NUM_THREADS': '1',  # Prevent OpenMP runtime issues
+            'NCCL_DEBUG': 'INFO'     # Help debug NCCL issues
+        })
+        
+        # Get free port
+        # Find a free port by creating a temporary socket
+        sock = socket.socket()
+        sock.bind(('', 0))  # Bind to any available port
+        port = sock.getsockname()[1]  # Get the port number
+        sock.close()
+        cmd = f'torchrun --nproc_per_node={num_gpus} --master_port {port} {tmp_file}'
+        
+        try:
+            print(f"Executing DDP command: {cmd}")
+            subprocess.run(cmd, env=env, shell=True, check=True)
+        finally:
+            # Cleanup temporary files
+            print("Cleaning up temporary files...")
+            tmp_file.unlink(missing_ok=True)
+            tmp_config.unlink(missing_ok=True)
+            try:
+                tmp_dir.rmdir()
+            except OSError:
+                pass
