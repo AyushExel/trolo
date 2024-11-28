@@ -3,7 +3,7 @@ from pathlib import Path
 from trolo.trainers.detection import DetectionTrainer
 from trolo.inference.detection import DetectionPredictor
 from trolo.utils.smart_defaults import infer_device, infer_input_path, infer_pretrained_model, infer_output_path, DEFAULT_MODEL
-
+from trolo.eval.detection import evaluate as eval_detection
 
 @click.group()
 def cli():
@@ -19,9 +19,11 @@ def cli():
 @click.option('--batch-size', '-bs', type=int, default=None, help='Batch size')
 def train(config, model, dataset, pretrained, device, batch_size):
     """Train a model using either combined config or separate model/dataset configs"""
-    overrides = {
-        'batch_size': batch_size
-    }
+
+    overrides = {}
+    if batch_size:
+        overrides['batch_size'] = batch_size
+
     # Initialize trainer
     trainer = DetectionTrainer(
         config=config,
@@ -70,6 +72,21 @@ def predict(model, input, output, device, conf_thresh, save, no_show):
         save_dir=output_path,
         conf_threshold=conf_thresh
     )
+
+@cli.command()
+@click.option('--model', '-m', type=str, default=None, help='Model name or path')
+@click.option('--device', '-dev', type=str, default=None, help='Device specification')
+@click.option('--batch-size', '-bs', type=int, default=None, help='Batch size')
+def eval(model, device, batch_size):
+    """Train a model using either combined config or separate model/dataset configs"""
+    
+    overrides = {}
+    if batch_size:
+        overrides['batch_size'] = batch_size
+
+    # Support DDP evaluation
+    device = device or infer_device()
+    eval_detection(model, device=device, **overrides)
 
 def main():
     cli()

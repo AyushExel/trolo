@@ -232,19 +232,19 @@ class DetectionTrainer(BaseTrainer):
         print('Training time {}'.format(total_time_str))
 
 
-    def val(self, ):
+    def val(self, device: str):
         self.eval()
 
         module = self.ema.module if self.ema else self.model
         test_stats, coco_evaluator = evaluate(module, self.criterion, self.postprocessor,
-                self.val_dataloader, self.evaluator, self.device)
+                self.val_dataloader, self.evaluator, device or self.device)
 
         if self.output_dir:
             dist_utils.save_on_master(coco_evaluator.coco_eval["bbox"].eval, self.output_dir / "eval.pth")
 
         return
     
-    def execute_ddp(self, device: str):
+    def execute_ddp(self, device: str, task="train"):
         """Execute distributed training on specified devices"""
         # Create output directories
         tmp_dir = Path(self.cfg.output_dir) / 'tmp'
@@ -291,7 +291,7 @@ def main():
     trainer._prepare_training()
     
     try:
-        trainer.fit()
+        {"trainer.fit()" if task == "train" else "trainer.val()"}
     finally:
         dist_utils.cleanup()
 

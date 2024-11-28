@@ -116,7 +116,7 @@ class BaseTrainer(object):
 
 
         if config is not None and self.cfg_path is None:
-            raise ValueError("cfg_path is None while config is provided. This should never happen.")
+            print("WARNING:cfg_path is None while config is provided. This should never happen.")
         
         ## Debugging
         print(self.cfg)
@@ -165,6 +165,7 @@ class BaseTrainer(object):
 
     def _load_combined_config(self, config, **overrides) -> YAMLConfig:
         """Load and validate a combined config."""
+        cfg_path = None
         if isinstance(config, str) and not config.endswith('.yml'):
             cfg_path = get_model_config_path(config)
             cfg = YAMLConfig(cfg_path, **overrides)
@@ -176,7 +177,7 @@ class BaseTrainer(object):
         else:
             raise TypeError(f"Unsupported config type: {type(config)}")
         
-        self.cfg_path = str(cfg_path)
+        self.cfg_path = str(cfg_path) if cfg_path else None
         return cfg
 
     def _load_separate_configs(self, model, dataset, **overrides) -> YAMLConfig:
@@ -573,10 +574,10 @@ class BaseTrainer(object):
 
         return adjusted_tensor
 
-    def fit(self):
+    def fit(self, device: str):
         raise NotImplementedError('')
 
-    def val(self):
+    def val(self, device: str):
         raise NotImplementedError('')
 
 # obj365_classes = [
