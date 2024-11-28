@@ -20,6 +20,14 @@ from ..utils.smart_defaults import infer_pretrained_model
 from ..utils.logging.wandb import WandbLogger, wandb
 from ..utils.logging.metrics_logger import ExperimentLogger
 
+def transform_overrides(overrides):
+    final_overrides = {}
+    if "batch_size" in overrides:
+        final_overrides["train_dataloader"] = {"total_batch_size": overrides["batch_size"]}
+        final_overrides["val_dataloader"] = {"total_batch_size": 2 * overrides["batch_size"]}
+
+    return final_overrides
+
 def to(m: nn.Module, device: str):
     if m is None:
         return None
@@ -76,6 +84,9 @@ class BaseTrainer(object):
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = False
         
+        # Set critical overrides
+        overrides = transform_overrides(overrides)
+
         self.cfg_path = None
         if config is not None:
             if model is not None or dataset is not None:
@@ -394,7 +405,6 @@ class BaseTrainer(object):
         self.optimizer = self.cfg.optimizer
         self.lr_scheduler = self.cfg.lr_scheduler
         self.lr_warmup_scheduler = self.cfg.lr_warmup_scheduler
-
         self.train_dataloader = dist_utils.warp_loader(
             self.cfg.train_dataloader, shuffle=self.cfg.train_dataloader.shuffle
         )

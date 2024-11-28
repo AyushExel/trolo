@@ -16,16 +16,19 @@ def cli():
 @click.option('--dataset', '-d', type=str, default=None, help='Dataset name or path')
 @click.option('--pretrained', '-p', type=str, default=None, help='Pretrained model name or path')
 @click.option('--device', '-dev', type=str, default=None, help='Device specification')
-def train(config, model, dataset, pretrained, device, overrides={}):
+@click.option('--batch-size', '-bs', type=int, default=None, help='Batch size')
+def train(config, model, dataset, pretrained, device, batch_size):
     """Train a model using either combined config or separate model/dataset configs"""
-
+    overrides = {
+        'batch_size': batch_size
+    }
     # Initialize trainer
     trainer = DetectionTrainer(
         config=config,
         model=model,
         dataset=dataset,
         pretrained_model=pretrained,
-        overrides=overrides
+        **overrides
     )
     
     # Start training
