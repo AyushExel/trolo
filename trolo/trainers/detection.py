@@ -312,9 +312,14 @@ if __name__ == "__main__":
         # Get free port
         # Find a free port by creating a temporary socket
         sock = socket.socket()
-        sock.bind(('', 0))  # Bind to any available port
-        port = sock.getsockname()[1]  # Get the port number
-        sock.close()
+        port = 7777
+        # check if port is free
+        while True:
+            try:
+                sock.bind(('', port))
+                break
+            except OSError:
+                port += 1
         cmd = f'torchrun --nproc_per_node={num_gpus} --master_port {port} {tmp_file}'
         
         try:
