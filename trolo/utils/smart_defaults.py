@@ -28,8 +28,8 @@ def find_config_files() -> Dict[str, Path]:
 CONFIG_FILES = find_config_files()
 
 DEFAULT_DOWNLOAD_DIR = "~/.trolo/models"
-DEFAULT_MODEL = "dfine_n_coco.pth"
-
+DEFAULT_MODEL = "dfine_n.pth"
+DEFAULT_OUTPUT_DIR = "output"
 
 MODEL_HUB = "..."
 HUB_MODELS = ["fine_n_coco.pth"]
@@ -111,3 +111,39 @@ def infer_device(device: str = None):
             return 'cpu'
             
     return device
+
+def infer_output_path(output_path: str = DEFAULT_OUTPUT_DIR):
+    """
+    Create output folder inside the given dir.
+    Check if the output path exists, if not create it.
+    if already exists, increment the output path by 1 until a free path is found.
+    
+    Example
+    -------
+    - input: ./outputs
+    - output: ./outputs/output # in case outputs/ was empty
+    - input: ./outputs/output_1 # if ./outputs/output already exists
+    """
+    if output_path is None:
+        output_path = DEFAULT_OUTPUT_DIR
+
+    # Convert to Path object for easier manipulation
+    output_path = Path(output_path)
+
+    # Create parent directory if it doesn't exist
+    if not output_path.parent.exists():
+        output_path.parent.mkdir(parents=True)
+
+    # If base path doesn't exist, use it directly
+    if not output_path.exists():
+        output_path.mkdir(parents=True)
+        return str(output_path)
+
+    # Find next available numbered path
+    counter = 1
+    while True:
+        new_path = output_path.parent / f"{output_path.name}_{counter}"
+        if not new_path.exists():
+            new_path.mkdir(parents=True)
+            return str(new_path)
+        counter += 1

@@ -1,6 +1,8 @@
 import torch
 import yaml
 import torch.nn as nn
+import numpy as np
+import random
 
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +19,14 @@ from ..loaders.yaml_config import load_config, merge_dict
 from ..utils.smart_defaults import infer_pretrained_model
 from ..utils.logging.wandb import WandbLogger, wandb
 from ..utils.logging.metrics_logger import ExperimentLogger
+
+def transform_overrides(overrides):
+    final_overrides = {}
+    if "batch_size" in overrides:
+        final_overrides["train_dataloader"] = {"total_batch_size": overrides["batch_size"]}
+        final_overrides["val_dataloader"] = {"total_batch_size": 2 * overrides["batch_size"]}
+
+    return final_overrides
 
 def to(m: nn.Module, device: str):
     if m is None:
@@ -65,6 +75,18 @@ class BaseTrainer(object):
             loggers: ExperimentLogger instance
             **kwargs: Additional config overrides
         """
+        # Set random seeds at the very beginning
+        torch.manual_seed(0)
+        torch.cuda.manual_seed(0)
+        torch.cuda.manual_seed_all(0)  # for multi-GPU
+        np.random.seed(0)
+        random.seed(0)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+        
+        # Set critical overrides
+        overrides = transform_overrides(overrides)
+
         self.cfg_path = None
         if config is not None:
             if model is not None or dataset is not None:
@@ -94,7 +116,7 @@ class BaseTrainer(object):
 
 
         if config is not None and self.cfg_path is None:
-            raise ValueError("cfg_path is None while config is provided. This should never happen.")
+            print("WARNING:cfg_path is None while config is provided. This should never happen.")
         
         ## Debugging
         print(self.cfg)
@@ -143,6 +165,7 @@ class BaseTrainer(object):
 
     def _load_combined_config(self, config, **overrides) -> YAMLConfig:
         """Load and validate a combined config."""
+        cfg_path = None
         if isinstance(config, str) and not config.endswith('.yml'):
             cfg_path = get_model_config_path(config)
             cfg = YAMLConfig(cfg_path, **overrides)
@@ -154,7 +177,7 @@ class BaseTrainer(object):
         else:
             raise TypeError(f"Unsupported config type: {type(config)}")
         
-        self.cfg_path = str(cfg_path)
+        self.cfg_path = str(cfg_path) if cfg_path else None
         return cfg
 
     def _load_separate_configs(self, model, dataset, **overrides) -> YAMLConfig:
@@ -383,7 +406,6 @@ class BaseTrainer(object):
         self.optimizer = self.cfg.optimizer
         self.lr_scheduler = self.cfg.lr_scheduler
         self.lr_warmup_scheduler = self.cfg.lr_warmup_scheduler
-
         self.train_dataloader = dist_utils.warp_loader(
             self.cfg.train_dataloader, shuffle=self.cfg.train_dataloader.shuffle
         )
@@ -398,84 +420,7 @@ class BaseTrainer(object):
             self.load_resume_state(self.cfg.resume)
 
     def execute_ddp(self, device: str):
-        """Execute distributed training on specified devices"""
-        # Create output directories
-        tmp_dir = Path(self.cfg.output_dir) / 'tmp'
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Create unique training file
-        timestamp = datetime.now().isoformat().replace(':', '-')
-        tmp_file = tmp_dir / f'train_{timestamp}.py'
-        tmp_config = tmp_dir / f'{tmp_file.stem}_config.yml'
-        
-        # Save config
-        with open(tmp_config, 'w') as f:
-            if "__include__" in self.cfg.yaml_cfg:
-                cfg_dir = Path(self.cfg_path).parent
-                paths = [str((cfg_dir / p).resolve()) for p in self.cfg.yaml_cfg["__include__"]]
-                self.cfg.yaml_cfg["__include__"] = paths
-            yaml.dump(self.cfg.yaml_cfg, f)
-        
-        # Create training script with improved process initialization
-        with open(tmp_file, 'w', encoding='utf-8') as f:
-            f.write(f'''
-import os
-import torch
-from pathlib import Path
-from trolo.trainers import DetectionTrainer
-from trolo.utils import dist_utils
-
-def main():
-    # Set multiprocessing start method
-    if torch.cuda.is_available():
-        torch.multiprocessing.set_start_method('spawn', force=True)
-    
-    # Setup distributed environment
-    dist_utils.setup_distributed(seed=0)
-    
-    # Load config from the saved yaml
-    config_path = "{tmp_config.absolute()}"
-    if not Path(config_path).exists():
-        raise FileNotFoundError(f"Config file not found: {{config_path}}")
-
-    # Initialize trainer with the saved config
-    trainer = DetectionTrainer(config=config_path)
-    trainer._setup()
-    trainer._prepare_training()
-    
-    try:
-        trainer.fit()
-    finally:
-        dist_utils.cleanup()
-
-if __name__ == "__main__":
-    main()
-''')
-
-        # Set CUDA devices and run DDP training with additional environment variables
-        num_gpus = len(device.split(','))
-        env = os.environ.copy()
-        env.update({
-            'CUDA_VISIBLE_DEVICES': device,
-            'PYTHONPATH': os.pathsep.join(sys.path),
-            'OMP_NUM_THREADS': '1',  # Prevent OpenMP runtime issues
-            'NCCL_DEBUG': 'INFO'     # Help debug NCCL issues
-        })
-        
-        cmd = f'torchrun --nproc_per_node={num_gpus} --master_port 7777 {tmp_file}'
-        
-        try:
-            print(f"Executing DDP command: {cmd}")
-            subprocess.run(cmd, env=env, shell=True, check=True)
-        finally:
-            # Cleanup temporary files
-            print("Cleaning up temporary files...")
-            tmp_file.unlink(missing_ok=True)
-            tmp_config.unlink(missing_ok=True)
-            try:
-                tmp_dir.rmdir()
-            except OSError:
-                pass
+        print(f'Not implemented')
 
     def eval(self):
         self._setup()
@@ -629,10 +574,10 @@ if __name__ == "__main__":
 
         return adjusted_tensor
 
-    def fit(self):
+    def fit(self, device: str):
         raise NotImplementedError('')
 
-    def val(self):
+    def val(self, device: str):
         raise NotImplementedError('')
 
 # obj365_classes = [
