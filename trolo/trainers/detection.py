@@ -232,7 +232,7 @@ class DetectionTrainer(BaseTrainer):
         print('Training time {}'.format(total_time_str))
 
 
-    def val(self, device: str):
+    def val(self, device: str = None):
         self.eval()
 
         module = self.ema.module if self.ema else self.model
