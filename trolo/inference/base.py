@@ -36,7 +36,8 @@ class BasePredictor(ABC):
     def predict(
         self, 
         input: Union[str, List[str], Image.Image, List[Image.Image]],
-        return_inputs: bool = False
+        return_inputs: bool = False,
+        conf_threshold: float = 0.5,
     ) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], List[Image.Image]]]:
         """Run inference on input"""
         pass
@@ -44,6 +45,7 @@ class BasePredictor(ABC):
     def visualize(
         self,
         input: Union[str, List[str], Image.Image, List[Image.Image]],
+        conf_threshold: float = 0.5,
         show: bool = False,
         save: bool = False,
         save_dir: Optional[str] = None
@@ -58,15 +60,13 @@ class BasePredictor(ABC):
             save_dir: Directory to save results. If None, will use ./outputs/
         """
         # Run prediction
-        predictions, inputs = self.predict(input, return_inputs=True)
-        
-        # Debug prints
-        print("Predictions type:", type(predictions))
-        print("First prediction type:", type(predictions[0]))
-        print("First prediction:", predictions[0])
-        
+        predictions, inputs = self.predict(input, return_inputs=True, conf_threshold=conf_threshold )
+
+        # Try to get ["cfg"]["yaml_cfg"]["class_names"] from the model checkpoint if it exists
+        class_names = self.config.yaml_cfg.get('class_names', None)
+
         # Visualize predictions
-        viz_images = self._visualize_predictions(inputs, predictions)
+        viz_images = self._visualize_predictions(inputs, predictions, class_names=class_names)
         
         # Show if requested
         if show:
