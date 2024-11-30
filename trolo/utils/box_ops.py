@@ -1,7 +1,23 @@
+from typing import Dict
+
 import torch
 import torchvision
 from torch import Tensor
-from typing import List, Tuple
+import supervision as sv
+
+
+def to_sv(results: Dict) -> sv.Detections:
+    detections = sv.Detections.empty()
+    print(results)
+    if "boxes" in results:
+        boxes_xcycwh = results["boxes"].numpy()
+        # Convert from [cx, cy, w, h] to [x0, y0, x1, y1]
+        boxes = sv.xcycwh_to_xyxy(boxes_xcycwh)
+        scores = results["scores"].numpy()
+        labels = results["labels"].numpy()
+        detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
+    print(detections)
+    return detections
 
 
 def generalized_box_iou(boxes1: Tensor, boxes2: Tensor) -> Tensor:
