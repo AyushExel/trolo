@@ -1,7 +1,7 @@
 <img width="838" alt="387845954-73311b13-a624-4736-8472-b22318bcd6b0" src="https://github.com/user-attachments/assets/08091cad-703d-4d7d-84f6-5e6c310bf6c2">
 
 <div align="center">
-  <a href="https://colab.research.google.com/github/ayushexel/trolo/blob/main/recipes/quickstart.ipynb">
+  <a href="https://colab.research.google.com/github/ayushexel/trolo/blob/master/recipes/quickstart.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
   </a>
   <a href="https://ayushexel.github.io/trolo/intro/">
@@ -14,12 +14,15 @@
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
 
-Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ayushexel/trolo/blob/main/recipes/quickstart.ipynb)
+Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ayushexel/trolo/blob/master/recipes/quickstart.ipynb)
 ## Installation
 
 ```bash
 pip install trolo
 ```
+
+> **Note**: This is an early release. The package is under active development. Please report any issues and I'll try to fix them ASAP.
+
 
 ## Features
 
