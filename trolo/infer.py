@@ -1,34 +1,17 @@
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torchvision.transforms as T
-from PIL import Image, ImageDraw
+from PIL import Image
 import cv2
 import numpy as np
 import onnxruntime as ort
-from pathlib import Path
+import supervision as sv
+
 from trolo.loaders import YAMLConfig
-from trolo.utils.smart_defaults import infer_model_config_path, infer_pretrained_model
-from trolo.loaders.maps import MODEL_CONFIG_MAP, get_model_config_path
-
-
-def draw_predictions(images, labels, boxes, scores, thrh=0.4):
-    """Draw predictions on images"""
-    for i, im in enumerate(images):
-        draw = ImageDraw.Draw(im)
-        scr = scores[i]
-        lab = labels[i][scr > thrh]
-        box = boxes[i][scr > thrh]
-        scrs = scr[scr > thrh]
-
-        for j, b in enumerate(box):
-            draw.rectangle(list(b), outline="red")
-            draw.text(
-                (b[0], b[1]),
-                text=f"{lab[j].item()} {round(scrs[j].item(), 2)}",
-                fill="blue",
-            )
-
-    return images
+from trolo.loaders.maps import get_model_config_path
+from trolo.utils.draw_utils import draw_predictions
 
 
 def process_image(model, input_path, device, format="torch", show=False, save=True):
@@ -91,12 +74,13 @@ def process_image(model, input_path, device, format="torch", show=False, save=Tr
 
         if format == "torch":
             output = model(im_data, orig_size)
-            result_images = draw_predictions([im_pil], output[0], output[1], output[2])
+            results = {"boxes": output[1], "labels": output[0], "scores": output[2]}
         else:
             blob = {"images": im_data, "orig_target_sizes": orig_size}
             output = model(blob)
-            result_images = draw_predictions([im_pil], output["labels"], output["boxes"], output["scores"])
+            results = {"boxes": output["boxes"], "labels": output["labels"], "scores": output["scores"]}
 
+        result_images = draw_predictions([im_pil], [results])
         if save:
             # Save result with original filename
             output_path = file_path.parent / f"{file_path.stem}_{format}_result{file_path.suffix}"
@@ -111,13 +95,9 @@ def process_video(model, input_path, device, format="torch", show=False, save=Tr
     """Process a video file"""
     cap = cv2.VideoCapture(input_path)
 
-    fps = cap.get(cv2.CAP_PROP_FPS)
-    orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
     if save:
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        out = cv2.VideoWriter(f"{format}_result.mp4", fourcc, fps, (orig_w, orig_h))
+        video_info = sv.VideoInfo.from_video_path(input_path)
+        video_sink = sv.VideoSink(target_path=f"{format}_result.mp4", video_info=video_info)
 
     transforms = T.Compose(
         [
@@ -127,29 +107,27 @@ def process_video(model, input_path, device, format="torch", show=False, save=Tr
     )
 
     frame_count = 0
-    print("Processing video frames...")
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
 
-        frame_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    for frame in sv.get_video_frames_generator(source_path=input_path):
+
+        frame_pil = sv.cv2_to_pillow(frame)
         w, h = frame_pil.size
         orig_size = torch.tensor([[w, h]]).to(device)
         im_data = transforms(frame_pil).unsqueeze(0).to(device)
 
         if format == "torch":
             output = model(im_data, orig_size)
-            result_images = draw_predictions([frame_pil], output[0], output[1], output[2])
+            results = {"boxes": output[1], "labels": output[0], "scores": output[2]}
         else:
             blob = {"images": im_data, "orig_target_sizes": orig_size}
             output = model(blob)
-            result_images = draw_predictions([frame_pil], output["labels"], output["boxes"], output["scores"])
+            results = {"boxes": output["boxes"], "labels": output["labels"], "scores": output["scores"]}
 
-        frame = cv2.cvtColor(np.array(result_images[0]), cv2.COLOR_RGB2BGR)
+        result_images = draw_predictions([frame_pil], [results])
+        frame = sv.pillow_to_cv2(result_images[0])
 
         if save:
-            out.write(frame)
+            video_sink.write_frame(frame)
 
         if show:
             cv2.imshow("Video", frame)
@@ -163,7 +141,6 @@ def process_video(model, input_path, device, format="torch", show=False, save=Tr
 
     cap.release()
     if save:
-        out.release()
         print(f"Video processing complete. Result saved as '{format}_result.mp4'")
     if show:
         cv2.destroyAllWindows()

@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
-import json
+
 import numpy as np
 import supervision as sv
-from PIL import ImageDraw, ImageFont
+
 from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
 from trolo.inference.video import VideoStream
 from trolo.utils.box_ops import to_sv
+from trolo.utils.draw_utils import draw_predictions
 
 
 import torch
@@ -91,7 +92,7 @@ class BasePredictor(ABC):
         class_names = self.config.yaml_cfg.get("class_names", None)
 
         # Visualize predictions
-        viz_images = self._visualize_predictions(inputs, predictions, class_names=class_names)
+        viz_images = draw_predictions(inputs, predictions, class_names=class_names)
 
         # Show if requested
         if show:
@@ -149,7 +150,7 @@ class BasePredictor(ABC):
 
                 # Run prediction and visualization
                 predictions, _ = self.predict(pil_frames, return_inputs=True, conf_threshold=conf_threshold)
-                viz_frames = self._visualize_predictions(pil_frames, predictions, class_names=class_names)
+                viz_frames = draw_predictions(pil_frames, predictions, class_names=class_names)
 
                 # Convert back to BGR for OpenCV
                 for viz_frame in viz_frames:
@@ -168,52 +169,3 @@ class BasePredictor(ABC):
 
             if show:
                 cv2.destroyAllWindows()
-
-    def _visualize_predictions(
-        self,
-        image: Union[Image.Image, List[Image.Image]],
-        predictions: List[Dict[str, Any]],
-        class_names: Optional[List[str]] = None,
-    ) -> List[Image.Image]:
-        """Internal method to visualize predictions
-
-        Args:
-            image: Single image or list of images
-            predictions: List of prediction dictionaries with boxes in [cx, cy, w, h] format
-            class_names: Optional list of class names
-        Returns:
-            List of PIL Images with visualized predictions
-        """
-        # Ensure inputs are lists
-        images = [image] if isinstance(image, Image.Image) else image
-
-        color_lookup = sv.ColorLookup.CLASS
-        box_annotator = sv.BoxAnnotator(color_lookup=color_lookup)
-        label_annotator = sv.RichLabelAnnotator(color_lookup=color_lookup)
-
-        result_images = []
-
-        for img, preds in zip(images, predictions):
-            detections = to_sv(preds)
-
-            if class_names:
-                class_names = np.asarray(class_names)
-                detections.data = {"class_name": class_names}
-
-                labels = [
-                    f"{detections['class_name'][class_id]} - {confidence:.2f}"
-                    for class_id, confidence
-                    in zip(detections.class_id, detections.confidence)
-                ]
-            else:
-                labels = [
-                    f"{class_id} {confidence:.2f}"
-                    for class_id, confidence
-                    in zip(detections.class_id, detections.confidence)
-                ]
-
-            img = box_annotator.annotate(img, detections)
-            img = label_annotator.annotate(img, detections, labels)
-            result_images.append(img)
-
-        return result_images
