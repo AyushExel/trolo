@@ -1,7 +1,7 @@
 <img width="838" alt="387845954-73311b13-a624-4736-8472-b22318bcd6b0" src="https://github.com/user-attachments/assets/08091cad-703d-4d7d-84f6-5e6c310bf6c2">
 
 
-# trolo
+# Trolo
 ![pred_0](https://github.com/user-attachments/assets/144ae351-c520-4640-8081-3e9a0db9b432)
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
