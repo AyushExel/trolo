@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trolo"
-version = "0.1.2"
+version = "0.1.21"
 description = "CLI tool for D-FINE model training and inference"
 requires-python = ">=3.8"
 dependencies = [
