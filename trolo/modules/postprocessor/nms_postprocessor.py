@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn.functional as F
 import torch.distributed
@@ -11,17 +9,16 @@ from trolo.loaders.registry import register
 from typing import Dict
 
 
-__all__ = ['DetNMSPostProcessor', ]
+__all__ = [
+    "DetNMSPostProcessor",
+]
 
 
 @register()
 class DetNMSPostProcessor(torch.nn.Module):
-    def __init__(self, \
-                iou_threshold=0.7,
-                score_threshold=0.01,
-                keep_topk=300,
-                box_fmt='cxcywh',
-                logit_fmt='sigmoid') -> None:
+    def __init__(
+        self, iou_threshold=0.7, score_threshold=0.01, keep_topk=300, box_fmt="cxcywh", logit_fmt="sigmoid"
+    ) -> None:
         super().__init__()
         self.iou_threshold = iou_threshold
         self.score_threshold = score_threshold
@@ -32,8 +29,8 @@ class DetNMSPostProcessor(torch.nn.Module):
         self.deploy_mode = False
 
     def forward(self, outputs: Dict[str, Tensor], orig_target_sizes: Tensor):
-        logits, boxes = outputs['pred_logits'], outputs['pred_boxes']
-        pred_boxes = torchvision.ops.box_convert(boxes, in_fmt=self.box_fmt, out_fmt='xyxy')
+        logits, boxes = outputs["pred_logits"], outputs["pred_boxes"]
+        pred_boxes = torchvision.ops.box_convert(boxes, in_fmt=self.box_fmt, out_fmt="xyxy")
         pred_boxes *= orig_target_sizes.repeat(1, 2).unsqueeze(1)
 
         values, pred_labels = torch.max(logits, dim=-1)
@@ -45,11 +42,7 @@ class DetNMSPostProcessor(torch.nn.Module):
 
         # TODO for onnx export
         if self.deploy_mode:
-            blobs = {
-                'pred_labels': pred_labels,
-                'pred_boxes': pred_boxes,
-                'pred_scores': pred_scores
-            }
+            blobs = {"pred_labels": pred_labels, "pred_boxes": pred_boxes, "pred_scores": pred_scores}
             return blobs
 
         results = []
@@ -60,19 +53,21 @@ class DetNMSPostProcessor(torch.nn.Module):
             pred_score = pred_scores[i][score_keep]
 
             keep = torchvision.ops.batched_nms(pred_box, pred_score, pred_label, self.iou_threshold)
-            keep = keep[:self.keep_topk]
+            keep = keep[: self.keep_topk]
 
             blob = {
-                'labels': pred_label[keep],
-                'boxes': pred_box[keep],
-                'scores': pred_score[keep],
+                "labels": pred_label[keep],
+                "boxes": pred_box[keep],
+                "scores": pred_score[keep],
             }
 
             results.append(blob)
 
         return results
 
-    def deploy(self, ):
+    def deploy(
+        self,
+    ):
         self.eval()
         self.deploy_mode = True
         return self

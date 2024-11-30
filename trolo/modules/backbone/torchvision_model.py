@@ -1,12 +1,11 @@
-
-
 import torch
 import torchvision
 
 from trolo.loaders.registry import register
 from .utils import IntermediateLayerGetter
 
-__all__ = ['TorchVisionModel']
+__all__ = ["TorchVisionModel"]
+
 
 @register()
 class TorchVisionModel(torch.nn.Module):
@@ -19,7 +18,7 @@ class TorchVisionModel(torch.nn.Module):
         model = torchvision.models.get_model(name, weights=weights, **kwargs)
 
         # TODO hard code.
-        if hasattr(model, 'features'):
+        if hasattr(model, "features"):
             model = IntermediateLayerGetter(model.features, return_layers)
         else:
             model = IntermediateLayerGetter(model, return_layers)

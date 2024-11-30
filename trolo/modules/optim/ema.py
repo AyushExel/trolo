@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 
@@ -8,7 +7,7 @@ from copy import deepcopy
 from trolo.loaders import register
 from trolo.utils import dist_utils
 
-__all__ = ['ModelEMA']
+__all__ = ["ModelEMA"]
 
 
 @register()
@@ -22,7 +21,8 @@ class ModelEMA(object):
     This class is sensitive where it is initialized in the sequence of model init,
     GPU assignment and distributed training wrappers.
     """
-    def __init__(self, model: nn.Module, decay: float=0.9999, warmups: int=1000, start: int=0):
+
+    def __init__(self, model: nn.Module, decay: float = 0.9999, warmups: int = 1000, start: int = 0):
         super().__init__()
 
         self.module = deepcopy(dist_utils.de_parallel(model)).eval()
@@ -37,11 +37,12 @@ class ModelEMA(object):
         if warmups == 0:
             self.decay_fn = lambda x: decay
         else:
-            self.decay_fn = lambda x: decay * (1 - math.exp(-x / warmups))  # decay exponential ramp (to help early epochs)
+            self.decay_fn = lambda x: decay * (
+                1 - math.exp(-x / warmups)
+            )  # decay exponential ramp (to help early epochs)
 
         for p in self.module.parameters():
             p.requires_grad_(False)
-
 
     def update(self, model: nn.Module):
         if self.before_start < self.start:
@@ -61,20 +62,23 @@ class ModelEMA(object):
         self.module = self.module.to(*args, **kwargs)
         return self
 
-    def state_dict(self, ):
+    def state_dict(
+        self,
+    ):
         return dict(module=self.module.state_dict(), updates=self.updates)
 
     def load_state_dict(self, state, strict=True):
-        self.module.load_state_dict(state['module'], strict=strict)
-        if 'updates' in state:
-            self.updates = state['updates']
+        self.module.load_state_dict(state["module"], strict=strict)
+        if "updates" in state:
+            self.updates = state["updates"]
 
-    def forwad(self, ):
-        raise RuntimeError('ema...')
+    def forwad(
+        self,
+    ):
+        raise RuntimeError("ema...")
 
     def extra_repr(self) -> str:
-        return f'decay={self.decay}, warmups={self.warmups}'
-
+        return f"decay={self.decay}, warmups={self.warmups}"
 
 
 class ExponentialMovingAverage(torch.optim.swa_utils.AveragedModel):
@@ -83,8 +87,8 @@ class ExponentialMovingAverage(torch.optim.swa_utils.AveragedModel):
     `torch.optim.swa_utils.AveragedModel <https://pytorch.org/docs/stable/optim.html#custom-averaging-strategies>`_
     is used to compute the EMA.
     """
-    def __init__(self, model, decay, device="cpu", use_buffers=True):
 
+    def __init__(self, model, decay, device="cpu", use_buffers=True):
         self.decay_fn = lambda x: decay * (1 - math.exp(-x / 2000))
 
         def ema_avg(avg_model_param, model_param, num_averaged):
