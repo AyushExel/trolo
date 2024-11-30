@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,7 +21,9 @@ class HungarianMatcher(nn.Module):
     while the others are un-matched (and thus treated as non-objects).
     """
 
-    __share__ = ['use_focal_loss', ]
+    __share__ = [
+        "use_focal_loss",
+    ]
 
     def __init__(self, weight_dict, use_focal_loss=False, alpha=0.25, gamma=2.0):
         """Creates the matcher
@@ -34,9 +34,9 @@ class HungarianMatcher(nn.Module):
             cost_giou: This is the relative weight of the giou loss of the bounding box in the matching cost
         """
         super().__init__()
-        self.cost_class = weight_dict['cost_class']
-        self.cost_bbox = weight_dict['cost_bbox']
-        self.cost_giou = weight_dict['cost_giou']
+        self.cost_class = weight_dict["cost_class"]
+        self.cost_bbox = weight_dict["cost_bbox"]
+        self.cost_giou = weight_dict["cost_giou"]
 
         self.use_focal_loss = use_focal_loss
         self.alpha = alpha
@@ -46,7 +46,7 @@ class HungarianMatcher(nn.Module):
 
     @torch.no_grad()
     def forward(self, outputs: Dict[str, torch.Tensor], targets, return_topk=False):
-        """ Performs the matching
+        """Performs the matching
 
         Params:
             outputs: This is a dict that contains at least these entries:
@@ -84,7 +84,7 @@ class HungarianMatcher(nn.Module):
         # The 1 is a constant that doesn't change the matching, it can be ommitted.
         if self.use_focal_loss:
             out_prob = out_prob[:, tgt_ids]
-            neg_cost_class = (1 - self.alpha) * (out_prob ** self.gamma) * (-(1 - out_prob + 1e-8).log())
+            neg_cost_class = (1 - self.alpha) * (out_prob**self.gamma) * (-(1 - out_prob + 1e-8).log())
             pos_cost_class = self.alpha * ((1 - out_prob) ** self.gamma) * (-(out_prob + 1e-8).log())
             cost_class = pos_cost_class - neg_cost_class
         else:
@@ -103,27 +103,35 @@ class HungarianMatcher(nn.Module):
         sizes = [len(v["boxes"]) for v in targets]
         C = torch.nan_to_num(C, nan=1.0)
         indices_pre = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))]
-        indices = [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices_pre]
+        indices = [
+            (torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices_pre
+        ]
 
         # Compute topk indices
         if return_topk:
-            return {'indices_o2m': self.get_top_k_matches(C, sizes=sizes, k=return_topk, initial_indices=indices_pre)}
+            return {"indices_o2m": self.get_top_k_matches(C, sizes=sizes, k=return_topk, initial_indices=indices_pre)}
 
-        return {'indices': indices} # , 'indices_o2m': C.min(-1)[1]}
+        return {"indices": indices}  # , 'indices_o2m': C.min(-1)[1]}
 
     def get_top_k_matches(self, C, sizes, k=1, initial_indices=None):
         indices_list = []
         # C_original = C.clone()
         for i in range(k):
-            indices_k = [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))] if i > 0 else initial_indices
-            indices_list.append([
-                (torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64))
-                for i, j in indices_k
-            ])
+            indices_k = (
+                [linear_sum_assignment(c[i]) for i, c in enumerate(C.split(sizes, -1))] if i > 0 else initial_indices
+            )
+            indices_list.append(
+                [(torch.as_tensor(i, dtype=torch.int64), torch.as_tensor(j, dtype=torch.int64)) for i, j in indices_k]
+            )
             for c, idx_k in zip(C.split(sizes, -1), indices_k):
                 idx_k = np.stack(idx_k)
                 c[:, idx_k] = 1e6
-        indices_list = [(torch.cat([indices_list[i][j][0] for i in range(k)], dim=0),
-                        torch.cat([indices_list[i][j][1] for i in range(k)], dim=0)) for j in range(len(sizes))]
+        indices_list = [
+            (
+                torch.cat([indices_list[i][j][0] for i in range(k)], dim=0),
+                torch.cat([indices_list[i][j][1] for i in range(k)], dim=0),
+            )
+            for j in range(len(sizes))
+        ]
         # C.copy_(C_original)
         return indices_list

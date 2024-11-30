@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,14 +5,16 @@ import torch.nn.functional as F
 import torchvision
 
 
-__all__ = ['DetDETRPostProcessor']
+__all__ = ["DetDETRPostProcessor"]
 
 from .box_revert import box_revert
 from .box_revert import BoxProcessFormat
 
+
 def mod(a, b):
     out = a - a // b * b
     return out
+
 
 class DetDETRPostProcessor(nn.Module):
     def __init__(
@@ -32,10 +32,10 @@ class DetDETRPostProcessor(nn.Module):
         self.deploy_mode = False
 
     def extra_repr(self) -> str:
-        return f'use_focal_loss={self.use_focal_loss}, num_classes={self.num_classes}, num_top_queries={self.num_top_queries}'
+        return f"use_focal_loss={self.use_focal_loss}, num_classes={self.num_classes}, num_top_queries={self.num_top_queries}"
 
     def forward(self, outputs, **kwargs):
-        logits, boxes = outputs['pred_logits'], outputs['pred_boxes']
+        logits, boxes = outputs["pred_logits"], outputs["pred_boxes"]
 
         if self.use_focal_loss:
             scores = F.sigmoid(logits)
@@ -56,8 +56,8 @@ class DetDETRPostProcessor(nn.Module):
         if kwargs is not None:
             boxes = box_revert(
                 boxes,
-                in_fmt='cxcywh',
-                out_fmt='xyxy',
+                in_fmt="cxcywh",
+                out_fmt="xyxy",
                 process_fmt=self.box_process_format,
                 normalized=True,
                 **kwargs,
@@ -74,7 +74,9 @@ class DetDETRPostProcessor(nn.Module):
 
         return results
 
-    def deploy(self, ):
+    def deploy(
+        self,
+    ):
         self.eval()
         self.deploy_mode = True
         return self

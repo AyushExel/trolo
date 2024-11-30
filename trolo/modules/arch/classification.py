@@ -1,19 +1,17 @@
-
-
 import torch
 import torch.nn as nn
 
 from trolo.loaders.registry import register
 
 
-__all__ = ['Classification', 'ClassHead']
+__all__ = ["Classification", "ClassHead"]
 
 
 @register()
 class Classification(torch.nn.Module):
-    __inject__ = ['backbone', 'head']
+    __inject__ = ["backbone", "head"]
 
-    def __init__(self, backbone: nn.Module, head: nn.Module=None):
+    def __init__(self, backbone: nn.Module, head: nn.Module = None):
         super().__init__()
 
         self.backbone = backbone

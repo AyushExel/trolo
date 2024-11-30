@@ -6,21 +6,20 @@ from typing import Any, Dict, Optional, List
 from .registry import GLOBAL_CONFIG
 
 __all__ = [
-    'load_config',
-    'merge_config',
-    'merge_dict',
-    'parse_cli',
+    "load_config",
+    "merge_config",
+    "merge_dict",
+    "parse_cli",
 ]
 
 
-INCLUDE_KEY = '__include__'
+INCLUDE_KEY = "__include__"
 
 
 def load_config(file_path, cfg=dict()):
-    """load config
-    """
+    """load config"""
     _, ext = os.path.splitext(file_path)
-    assert ext in ['.yml', '.yaml'], "only support yaml files"
+    assert ext in [".yml", ".yaml"], "only support yaml files"
 
     with open(file_path) as f:
         file_cfg = yaml.load(f, Loader=yaml.Loader)
@@ -30,10 +29,10 @@ def load_config(file_path, cfg=dict()):
     if INCLUDE_KEY in file_cfg:
         base_yamls = list(file_cfg[INCLUDE_KEY])
         for base_yaml in base_yamls:
-            if base_yaml.startswith('~'):
+            if base_yaml.startswith("~"):
                 base_yaml = os.path.expanduser(base_yaml)
 
-            if not base_yaml.startswith('/'):
+            if not base_yaml.startswith("/"):
                 base_yaml = os.path.join(os.path.dirname(file_path), base_yaml)
 
             with open(base_yaml) as f:
@@ -44,11 +43,11 @@ def load_config(file_path, cfg=dict()):
 
 
 def merge_dict(dct, another_dct, inplace=True) -> Dict:
-    """merge another_dct into dct
-    """
+    """merge another_dct into dct"""
+
     def _merge(dct, another) -> Dict:
         for k in another:
-            if (k in dct and isinstance(dct[k], dict) and isinstance(another[k], dict)):
+            if k in dct and isinstance(dct[k], dict) and isinstance(another[k], dict):
                 _merge(dct[k], another[k])
             else:
                 dct[k] = another[k]
@@ -62,9 +61,9 @@ def merge_dict(dct, another_dct, inplace=True) -> Dict:
 
 
 def dictify(s: str, v: Any) -> Dict:
-    if '.' not in s:
+    if "." not in s:
         return {s: v}
-    key, rest = s.split('.', 1)
+    key, rest = s.split(".", 1)
     return {key: dictify(rest, v)}
 
 
@@ -79,15 +78,14 @@ def parse_cli(nargs: List[str]) -> Dict:
 
     for s in nargs:
         s = s.strip()
-        k, v = s.split('=', 1)
+        k, v = s.split("=", 1)
         d = dictify(k, yaml.load(v, Loader=yaml.Loader))
         cfg = merge_dict(cfg, d)
 
     return cfg
 
 
-
-def merge_config(cfg, another_cfg=GLOBAL_CONFIG, inplace: bool=False, overwrite: bool=False):
+def merge_config(cfg, another_cfg=GLOBAL_CONFIG, inplace: bool = False, overwrite: bool = False):
     """
     Merge another_cfg into cfg, return the merged config
 
@@ -102,6 +100,7 @@ def merge_config(cfg, another_cfg=GLOBAL_CONFIG, inplace: bool=False, overwrite:
         model1 = create_from_config(cfg1['model'], cfg1)
         model2 = create_from_config(cfg2['model'], cfg2)
     """
+
     def _merge(dct, another):
         for k in another:
             if k not in dct:

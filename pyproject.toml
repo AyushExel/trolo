@@ -21,7 +21,15 @@ dependencies = [
     "calflops",
     "transformers",
     "scipy",
-    "wandb"
+    "wandb",
+    "numpy<=1.26.4"
+]
+
+[project.optional-dependencies]
+
+dev = [
+    "ruff>=0.6.1",
+    "pytest"
 ]
 
 [project.scripts]
@@ -38,3 +46,17 @@ trolo = [
     "utils/scripts/**/*.sh",
     "data/samples/*"
 ]
+
+[tool.ruff]
+line-length = 120
+
+exclude = [
+    "recipes/",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+split-on-trailing-comma = false

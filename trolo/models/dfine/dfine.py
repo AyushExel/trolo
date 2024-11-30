@@ -1,17 +1,22 @@
-
-
 import torch.nn as nn
 from trolo.loaders.registry import register
 
 
-__all__ = ['DFINE', ]
+__all__ = [
+    "DFINE",
+]
 
 
 @register()
 class DFINE(nn.Module):
-    __inject__ = ['backbone', 'encoder', 'decoder', ]
+    __inject__ = [
+        "backbone",
+        "encoder",
+        "decoder",
+    ]
 
-    def __init__(self, \
+    def __init__(
+        self,
         backbone: nn.Module,
         encoder: nn.Module,
         decoder: nn.Module,
@@ -28,9 +33,11 @@ class DFINE(nn.Module):
 
         return x
 
-    def deploy(self, ):
+    def deploy(
+        self,
+    ):
         self.eval()
         for m in self.modules():
-            if hasattr(m, 'convert_to_deploy'):
+            if hasattr(m, "convert_to_deploy"):
                 m.convert_to_deploy()
         return self

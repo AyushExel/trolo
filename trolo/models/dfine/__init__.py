@@ -1,6 +1,3 @@
-
-
-
 from .dfine import DFINE
 from .matcher import HungarianMatcher
 from .hybrid_encoder import HybridEncoder

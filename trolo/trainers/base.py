@@ -20,6 +20,7 @@ from ..utils.smart_defaults import infer_pretrained_model
 from ..utils.logging.wandb import WandbLogger, wandb
 from ..utils.logging.metrics_logger import ExperimentLogger
 
+
 def transform_overrides(overrides):
     final_overrides = {}
     if "batch_size" in overrides:
@@ -27,6 +28,7 @@ def transform_overrides(overrides):
         final_overrides["val_dataloader"] = {"total_batch_size": 2 * overrides["batch_size"]}
 
     return final_overrides
+
 
 def to(m: nn.Module, device: str):
     if m is None:
@@ -37,7 +39,7 @@ def to(m: nn.Module, device: str):
 def remove_module_prefix(state_dict):
     new_state_dict = {}
     for k, v in state_dict.items():
-        if k.startswith('module.'):
+        if k.startswith("module."):
             new_state_dict[k[7:]] = v
         else:
             new_state_dict[k] = v
@@ -52,10 +54,10 @@ class BaseTrainer(object):
         dataset: Optional[Union[str, Path, Dict]] = None,  # Dataset name, config path, or config dict
         pretrained_model: Optional[Union[str, Path]] = None,  # Path to pretrained model or model name
         loggers: Optional[Union[List[ExperimentLogger], ExperimentLogger]] = None,
-        **overrides
+        **overrides,
     ):
         """Initialize trainer with flexible configuration options.
-        
+
         Args:
             config: Combined config - can be:
                     - Path to complete config file
@@ -83,7 +85,7 @@ class BaseTrainer(object):
         # random.seed(0)
         # torch.backends.cudnn.deterministic = True
         # torch.backends.cudnn.benchmark = False
-        
+
         # Set critical overrides
         overrides = transform_overrides(overrides)
 
@@ -100,24 +102,98 @@ class BaseTrainer(object):
             self.cfg = self._load_separate_configs(model, dataset, **overrides)
         else:
             raise ValueError("Must specify either config or both model and dataset")
-        
+
         if pretrained_model is not None:
             self.cfg.tuning = infer_pretrained_model(pretrained_model)
-        
-        self.forward_loggers = loggers
-        
-        self.obj365_ids = [
-            0, 46, 5, 58, 114, 55, 116, 65, 21, 40, 176, 127, 249, 24, 56, 139, 92, 78, 99, 96,
-            144, 295, 178, 180, 38, 39, 13, 43, 120, 219, 148, 173, 165, 154, 137, 113, 145, 146,
-            204, 8, 35, 10, 88, 84, 93, 26, 112, 82, 265, 104, 141, 152, 234, 143, 150, 97, 2,
-            50, 25, 75, 98, 153, 37, 73, 115, 132, 106, 61, 163, 134, 277, 81, 133, 18, 94, 30,
-            169, 70, 328, 226
-        ]
 
+        self.forward_loggers = loggers
+
+        self.obj365_ids = [
+            0,
+            46,
+            5,
+            58,
+            114,
+            55,
+            116,
+            65,
+            21,
+            40,
+            176,
+            127,
+            249,
+            24,
+            56,
+            139,
+            92,
+            78,
+            99,
+            96,
+            144,
+            295,
+            178,
+            180,
+            38,
+            39,
+            13,
+            43,
+            120,
+            219,
+            148,
+            173,
+            165,
+            154,
+            137,
+            113,
+            145,
+            146,
+            204,
+            8,
+            35,
+            10,
+            88,
+            84,
+            93,
+            26,
+            112,
+            82,
+            265,
+            104,
+            141,
+            152,
+            234,
+            143,
+            150,
+            97,
+            2,
+            50,
+            25,
+            75,
+            98,
+            153,
+            37,
+            73,
+            115,
+            132,
+            106,
+            61,
+            163,
+            134,
+            277,
+            81,
+            133,
+            18,
+            94,
+            30,
+            169,
+            70,
+            328,
+            226,
+        ]
 
         if config is not None and self.cfg_path is None:
             print("WARNING:cfg_path is None while config is provided. This should never happen.")
-        
+
         ## Debugging
         print(self.cfg)
 
@@ -127,7 +203,7 @@ class BaseTrainer(object):
             loggers = []
         else:
             loggers = [loggers] if isinstance(loggers, ExperimentLogger) else loggers
-        
+
         # Get unique output path and experiment name
         output_path = self._get_unique_output_path(self.cfg.output_dir)
         self.cfg.output_dir = str(output_path)  # Update config with unique path
@@ -136,26 +212,23 @@ class BaseTrainer(object):
         # only attach loggers if we're the main process of DDP or running without DDP or on CPU
         if not torch.distributed.is_initialized() or torch.distributed.get_rank() == 0:
             try:
-                loggers.append(WandbLogger(
-                    project="trolo",
-                    name=experiment_name,
-                    config=self.cfg.__dict__
-                ))
+                loggers.append(WandbLogger(project="trolo", name=experiment_name, config=self.cfg.__dict__))
             except Exception as e:
                 print(f"Wandb is not installed. Please install it with `pip install wandb`.")
             self.loggers = loggers
-            assert all(isinstance(logger, ExperimentLogger) for logger in self.loggers), "All loggers must be instances of ExperimentLogger"
+            assert all(
+                isinstance(logger, ExperimentLogger) for logger in self.loggers
+            ), "All loggers must be instances of ExperimentLogger"
         else:
             self.loggers = []
-
 
     def _get_unique_output_path(self, base_path: Union[str, Path]) -> Path:
         """Get a unique output path by appending a counter if path exists"""
         base_path = Path(base_path)
-        
+
         if not base_path.exists():
             return base_path
-        
+
         counter = 1
         while True:
             new_path = base_path.parent / f"{base_path.name}_{counter}"
@@ -166,7 +239,7 @@ class BaseTrainer(object):
     def _load_combined_config(self, config, **overrides) -> YAMLConfig:
         """Load and validate a combined config."""
         cfg_path = None
-        if isinstance(config, str) and not config.endswith('.yml'):
+        if isinstance(config, str) and not config.endswith(".yml"):
             cfg_path = get_model_config_path(config)
             cfg = YAMLConfig(cfg_path, **overrides)
         elif isinstance(config, (str, Path)):
@@ -176,14 +249,14 @@ class BaseTrainer(object):
             cfg = YAMLConfig.from_state_dict(config)
         else:
             raise TypeError(f"Unsupported config type: {type(config)}")
-        
+
         self.cfg_path = str(cfg_path) if cfg_path else None
         return cfg
 
     def _load_separate_configs(self, model, dataset, **overrides) -> YAMLConfig:
         """Load and merge separate model and dataset configs."""
         # Load model config
-        if isinstance(model, str) and not model.endswith('.yml'):
+        if isinstance(model, str) and not model.endswith(".yml"):
             model_cfg = get_model_config_path(model)
             print(f"Loading model config from: {model_cfg}")
             model_config = load_config(model_cfg)
@@ -198,7 +271,7 @@ class BaseTrainer(object):
             raise TypeError(f"Unsupported model type: {type(model)}")
 
         # Load dataset config
-        if isinstance(dataset, str) and not dataset.endswith('.yml'):
+        if isinstance(dataset, str) and not dataset.endswith(".yml"):
             dataset_cfg = get_dataset_config_path(dataset)
             print(f"Loading dataset config from: {dataset_cfg}")
             dataset_config = load_config(dataset_cfg)
@@ -213,24 +286,27 @@ class BaseTrainer(object):
             raise TypeError(f"Unsupported dataset type: {type(dataset)}")
 
         # Print configs before merge for debugging
-        print("Model config transforms:", model_config.get('train_dataloader', {}).get('dataset', {}).get('transforms'))
-        print("Dataset config transforms:", dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms'))
+        print("Model config transforms:", model_config.get("train_dataloader", {}).get("dataset", {}).get("transforms"))
+        print(
+            "Dataset config transforms:",
+            dataset_config.get("train_dataloader", {}).get("dataset", {}).get("transforms"),
+        )
 
         # Merge configs
         cfg = YAMLConfig.merge_configs(model_config, dataset_config, **overrides)
         print("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
-        
+
         return cfg
 
     def _validate_config(self, cfg: YAMLConfig):
         """Validate that all required config fields are present."""
         required_fields = {
-            'task': "Task type must be specified",
-            'train_dataloader': "Training dataloader configuration is required",
-            'val_dataloader': "Validation dataloader configuration is required",
-            'model': "Model configuration is required"
+            "task": "Task type must be specified",
+            "train_dataloader": "Training dataloader configuration is required",
+            "val_dataloader": "Validation dataloader configuration is required",
+            "model": "Model configuration is required",
         }
-        
+
         for field, message in required_fields.items():
             if not hasattr(cfg, field) and field not in cfg.yaml_cfg:
                 raise ValueError(message)
@@ -238,36 +314,30 @@ class BaseTrainer(object):
     def check_and_download_dataset(self):
         """Check if dataset exists and download if needed"""
         paths_to_check = []
-        
+
         # Check train dataset if exists
-        if hasattr(self.cfg, 'yaml_cfg') and 'train_dataloader' in self.cfg.yaml_cfg:
-            train_cfg = self.cfg.yaml_cfg['train_dataloader']['dataset']
-            paths_to_check.extend([
-                train_cfg['img_folder'],
-                train_cfg['ann_file']
-            ])
-            
+        if hasattr(self.cfg, "yaml_cfg") and "train_dataloader" in self.cfg.yaml_cfg:
+            train_cfg = self.cfg.yaml_cfg["train_dataloader"]["dataset"]
+            paths_to_check.extend([train_cfg["img_folder"], train_cfg["ann_file"]])
+
         # Check val dataset if exists
-        if hasattr(self.cfg, 'yaml_cfg') and 'val_dataloader' in self.cfg.yaml_cfg:
-            val_cfg = self.cfg.yaml_cfg['val_dataloader']['dataset']
-            paths_to_check.extend([
-                val_cfg['img_folder'],
-                val_cfg['ann_file']
-            ])
-            
+        if hasattr(self.cfg, "yaml_cfg") and "val_dataloader" in self.cfg.yaml_cfg:
+            val_cfg = self.cfg.yaml_cfg["val_dataloader"]["dataset"]
+            paths_to_check.extend([val_cfg["img_folder"], val_cfg["ann_file"]])
+
         missing_paths = [p for p in paths_to_check if not Path(p).exists()]
-        
+
         if missing_paths:
-            if not hasattr(self.cfg, 'auto_download') or self.cfg.auto_download:
+            if not hasattr(self.cfg, "auto_download") or self.cfg.auto_download:
                 print(f"Dataset paths not found: {missing_paths}")
-                if hasattr(self.cfg, 'yaml_cfg') and 'download_script' in self.cfg.yaml_cfg:
+                if hasattr(self.cfg, "yaml_cfg") and "download_script" in self.cfg.yaml_cfg:
                     # Try to resolve script path
-                    script_path = Path(self.cfg.yaml_cfg['download_script'])
-                    
+                    script_path = Path(self.cfg.yaml_cfg["download_script"])
+
                     # If direct path doesn't exist, try package location
                     if not script_path.exists():
                         pkg_root = Path(__file__).parent.parent  # trolo directory
-                        pkg_script_path = pkg_root / 'utils' / 'scripts' / 'data_download' / script_path.name
+                        pkg_script_path = pkg_root / "utils" / "scripts" / "data_download" / script_path.name
                         if pkg_script_path.exists():
                             script_path = pkg_script_path
                         else:
@@ -275,19 +345,19 @@ class BaseTrainer(object):
                                 f"Download script not found at {script_path} "
                                 f"or in package location {pkg_script_path}"
                             )
-                    
+
                     print(f"Running download script: {script_path}")
                     try:
                         import subprocess
                         import stat
-                        
+
                         # Get script extension
                         script_ext = script_path.suffix.lower()
-                        
-                        if script_ext == '.py':
+
+                        if script_ext == ".py":
                             # Run Python script
-                            subprocess.run(['python', str(script_path)], check=True)
-                        elif script_ext in ['.sh', '']:  # No extension also treated as shell script
+                            subprocess.run(["python", str(script_path)], check=True)
+                        elif script_ext in [".sh", ""]:  # No extension also treated as shell script
                             # Make script executable if it's not
                             if not os.access(script_path, os.X_OK):
                                 script_path.chmod(script_path.stat().st_mode | stat.S_IEXEC)
@@ -295,12 +365,12 @@ class BaseTrainer(object):
                             subprocess.run([str(script_path)], shell=True, check=True)
                         else:
                             raise ValueError(f"Unsupported script type: {script_ext}")
-                            
+
                         # Verify download was successful
                         still_missing = [p for p in missing_paths if not Path(p).exists()]
                         if still_missing:
                             raise RuntimeError(f"Download script completed but paths still missing: {still_missing}")
-                        
+
                         print("Dataset download completed successfully")
                     except subprocess.CalledProcessError as e:
                         raise RuntimeError(f"Dataset download failed: {e}")
@@ -319,18 +389,18 @@ class BaseTrainer(object):
         self._init_loggers()
         self.check_and_download_dataset()
         self._validate_config(self.cfg)
-        
+
         cfg = self.cfg
         if cfg.device:
             device = torch.device(cfg.device)
         else:
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model = cfg.model
 
         # NOTE: Must load_tuning_state before EMA instance building
         if self.cfg.tuning:
-            print(f'Tuning checkpoint from {self.cfg.tuning}')
+            print(f"Tuning checkpoint from {self.cfg.tuning}")
             self.load_tuning_state(self.cfg.tuning)
 
         self.model = dist_utils.warp_model(
@@ -353,7 +423,7 @@ class BaseTrainer(object):
         if self.writer:
             atexit.register(self.writer.close)
             if dist_utils.is_main_process():
-                self.writer.add_text('config', '{:s}'.format(cfg.__repr__()), 0)
+                self.writer.add_text("config", "{:s}".format(cfg.__repr__()), 0)
 
     def cleanup(self):
         if self.writer:
@@ -361,7 +431,7 @@ class BaseTrainer(object):
 
     def train(self, device: str = None):
         """Train the model using either single GPU or DDP based on device specification
-        
+
         Args:
             device: Device specification. Can be:
                 - None (defaults to first available GPU or CPU)
@@ -371,30 +441,30 @@ class BaseTrainer(object):
         """
         # Get device(s) based on specification
         devices = dist_utils.infer_ddp_devices(device)
-        
+
         # Check if we're already in a distributed environment
         is_distributed = dist_utils.is_dist_available_and_initialized()
-        
+
         if devices == ["cpu"]:
             # CPU training
             print("Training on CPU")
             self._setup()
             self._prepare_training()
-            
+
         elif len(devices) == 1 and not is_distributed:
             # Single GPU training
             print(f"Training on single GPU: {devices[0]}")
             os.environ["CUDA_VISIBLE_DEVICES"] = str(devices[0])
-            self._setup() 
+            self._setup()
             self._prepare_training()
-            
+
         elif len(devices) > 1 and not is_distributed:
             # Launch DDP training only if we're not already in a distributed environment
             print(f"Launching DDP training on GPUs: {devices}")
             device_str = ",".join(map(str, devices))
             self.execute_ddp(device_str)
             return  # Return after DDP launch as the parent process doesn't need to continue
-            
+
         else:
             # We're already in a distributed environment, proceed with normal setup
             print(f"Setting up DDP worker process")
@@ -409,45 +479,41 @@ class BaseTrainer(object):
         self.train_dataloader = dist_utils.warp_loader(
             self.cfg.train_dataloader, shuffle=self.cfg.train_dataloader.shuffle
         )
-        self.val_dataloader = dist_utils.warp_loader(
-            self.cfg.val_dataloader, shuffle=self.cfg.val_dataloader.shuffle
-        )
+        self.val_dataloader = dist_utils.warp_loader(self.cfg.val_dataloader, shuffle=self.cfg.val_dataloader.shuffle)
 
         self.evaluator = self.cfg.evaluator
 
         if self.cfg.resume:
-            print(f'Resume checkpoint from {self.cfg.resume}')
+            print(f"Resume checkpoint from {self.cfg.resume}")
             self.load_resume_state(self.cfg.resume)
 
     def execute_ddp(self, device: str):
-        print(f'Not implemented')
+        print(f"Not implemented")
 
     def eval(self):
         self._setup()
 
-        self.val_dataloader = dist_utils.warp_loader(
-            self.cfg.val_dataloader, shuffle=self.cfg.val_dataloader.shuffle
-        )
+        self.val_dataloader = dist_utils.warp_loader(self.cfg.val_dataloader, shuffle=self.cfg.val_dataloader.shuffle)
 
         self.evaluator = self.cfg.evaluator
 
         if self.cfg.resume:
-            print(f'Resume checkpoint from {self.cfg.resume}')
+            print(f"Resume checkpoint from {self.cfg.resume}")
             self.load_resume_state(self.cfg.resume)
 
     def to(self, module, device):
-        return module.to(device) if hasattr(module, 'to') else module
+        return module.to(device) if hasattr(module, "to") else module
 
     def state_dict(self):
         """State dict, train/eval"""
         state = {}
-        state['date'] = datetime.now().isoformat()
+        state["date"] = datetime.now().isoformat()
 
         # For resume
-        state['last_epoch'] = self.last_epoch
+        state["last_epoch"] = self.last_epoch
 
         for k, v in self.__dict__.items():
-            if hasattr(v, 'state_dict'):
+            if hasattr(v, "state_dict"):
                 v = dist_utils.de_parallel(v)
                 state[k] = v.state_dict()
 
@@ -455,51 +521,51 @@ class BaseTrainer(object):
 
     def load_state_dict(self, state):
         """Load state dict, train/eval"""
-        if 'last_epoch' in state:
-            self.last_epoch = state['last_epoch']
-            print('Load last_epoch')
+        if "last_epoch" in state:
+            self.last_epoch = state["last_epoch"]
+            print("Load last_epoch")
 
         for k, v in self.__dict__.items():
-            if hasattr(v, 'load_state_dict') and k in state:
+            if hasattr(v, "load_state_dict") and k in state:
                 v = dist_utils.de_parallel(v)
                 v.load_state_dict(state[k])
-                print(f'Load {k}.state_dict')
+                print(f"Load {k}.state_dict")
 
-            if hasattr(v, 'load_state_dict') and k not in state:
-                if k == 'ema':
-                    model = getattr(self, 'model', None)
+            if hasattr(v, "load_state_dict") and k not in state:
+                if k == "ema":
+                    model = getattr(self, "model", None)
                     if model is not None:
                         ema = dist_utils.de_parallel(v)
                         model_state_dict = remove_module_prefix(model.state_dict())
-                        ema.load_state_dict({'module': model_state_dict})
-                        print(f'Load {k}.state_dict from model.state_dict')
+                        ema.load_state_dict({"module": model_state_dict})
+                        print(f"Load {k}.state_dict from model.state_dict")
                 else:
-                    print(f'Not load {k}.state_dict')
+                    print(f"Not load {k}.state_dict")
 
     def load_resume_state(self, path: str):
         """Load resume"""
-        if path.startswith('http'):
-            state = torch.hub.load_state_dict_from_url(path, map_location='cpu')
+        if path.startswith("http"):
+            state = torch.hub.load_state_dict_from_url(path, map_location="cpu")
         else:
-            state = torch.load(path, map_location='cpu')
+            state = torch.load(path, map_location="cpu")
 
         # state['model'] = remove_module_prefix(state['model'])
         self.load_state_dict(state)
 
     def load_tuning_state(self, path: str):
         """Load model for tuning and adjust mismatched head parameters"""
-        if path.startswith('http'):
-            state = torch.hub.load_state_dict_from_url(path, map_location='cpu')
+        if path.startswith("http"):
+            state = torch.hub.load_state_dict_from_url(path, map_location="cpu")
         else:
-            state = torch.load(path, map_location='cpu')
+            state = torch.load(path, map_location="cpu")
 
         module = dist_utils.de_parallel(self.model)
 
         # Load the appropriate state dict
-        if 'ema' in state:
-            pretrain_state_dict = state['ema']['module']
+        if "ema" in state:
+            pretrain_state_dict = state["ema"]["module"]
         else:
-            pretrain_state_dict = state['model']
+            pretrain_state_dict = state["model"]
 
         # Adjust head parameters between datasets
         try:
@@ -509,7 +575,7 @@ class BaseTrainer(object):
             stat, infos = self._matched_state(module.state_dict(), pretrain_state_dict)
 
         module.load_state_dict(stat, strict=False)
-        print(f'Load model.state_dict, {infos}')
+        print(f"Load model.state_dict, {infos}")
 
     @staticmethod
     def _matched_state(state: Dict[str, torch.Tensor], params: Dict[str, torch.Tensor]):
@@ -525,22 +591,21 @@ class BaseTrainer(object):
             else:
                 missed_list.append(k)
 
-        return matched_state, {'missed': missed_list, 'unmatched': unmatched_list}
+        return matched_state, {"missed": missed_list, "unmatched": unmatched_list}
 
     def _adjust_head_parameters(self, cur_state_dict, pretrain_state_dict):
         """Adjust head parameters between datasets."""
         # List of parameters to adjust
-        if pretrain_state_dict['decoder.denoising_class_embed.weight'].size() != \
-                cur_state_dict['decoder.denoising_class_embed.weight'].size():
-            del pretrain_state_dict['decoder.denoising_class_embed.weight']
+        if (
+            pretrain_state_dict["decoder.denoising_class_embed.weight"].size()
+            != cur_state_dict["decoder.denoising_class_embed.weight"].size()
+        ):
+            del pretrain_state_dict["decoder.denoising_class_embed.weight"]
 
-        head_param_names = [
-            'decoder.enc_score_head.weight',
-            'decoder.enc_score_head.bias'
-        ]
+        head_param_names = ["decoder.enc_score_head.weight", "decoder.enc_score_head.bias"]
         for i in range(8):
-            head_param_names.append(f'decoder.dec_score_head.{i}.weight')
-            head_param_names.append(f'decoder.dec_score_head.{i}.bias')
+            head_param_names.append(f"decoder.dec_score_head.{i}.weight")
+            head_param_names.append(f"decoder.dec_score_head.{i}.bias")
 
         adjusted_params = []
 
@@ -567,18 +632,19 @@ class BaseTrainer(object):
 
         if pretrain_tensor.size() > cur_tensor.size():
             for coco_id, obj_id in enumerate(self.obj365_ids):
-                adjusted_tensor[coco_id] = pretrain_tensor[obj_id+1]
+                adjusted_tensor[coco_id] = pretrain_tensor[obj_id + 1]
         else:
             for coco_id, obj_id in enumerate(self.obj365_ids):
-                adjusted_tensor[obj_id+1] = pretrain_tensor[coco_id]
+                adjusted_tensor[obj_id + 1] = pretrain_tensor[coco_id]
 
         return adjusted_tensor
 
     def fit(self, device: str):
-        raise NotImplementedError('')
+        raise NotImplementedError("")
 
     def val(self, device: str):
-        raise NotImplementedError('')
+        raise NotImplementedError("")
+
 
 # obj365_classes = [
 #         'Person', 'Sneakers', 'Chair', 'Other Shoes', 'Hat', 'Car', 'Lamp', 'Glasses',
