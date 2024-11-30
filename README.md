@@ -1,6 +1,7 @@
-<img width="512" alt="Screenshot 2024-11-20 at 2 38 59 AM" src="https://github.com/user-attachments/assets/73311b13-a624-4736-8472-b22318bcd6b0">
+<img width="1024" alt="Screenshot 2024-11-20 at 2 38 59 AM" src="https://github.com/user-attachments/assets/73311b13-a624-4736-8472-b22318bcd6b0">
 
 # trolo
+![pred_0](https://github.com/user-attachments/assets/144ae351-c520-4640-8081-3e9a0db9b432)
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
 
@@ -21,7 +22,6 @@ pip install trolo
 
 ## Quick Start
 
-![pred_0](https://github.com/user-attachments/assets/144ae351-c520-4640-8081-3e9a0db9b432)
 
 The CLI command structure is:
 
@@ -56,31 +56,6 @@ predictions = predictor.predict() # get predictions
 poltted_preds = predictor.visualize(show=True, save=True) # or get visualized outputs
 ```
 Visit Inference Docs for more details
-
-
-### Training
-<b>Example training command:</b>
-```bash
-trolo train --config dfine_n # automatically find the config file
-```
-
-🔥 Automatically handle DDP by simply passing the GPUs to the CLI
-```bash
-trolo train --config dfine_n --device 0,1,2,3 
-```
-That's it!
-
-<b>Python API</b>
-
-```python
-from trolo.trainers import DetectionTrainer
-
-trainer = DetectionTrainer(config="dfine_n") # or pass custom config path
-trainer.train() # pass device = 0,1,2,3 to automatically handle DDP 
-```
-
-Visit Training Docs for more details
-
 
 ## Available Models
 
@@ -142,6 +117,30 @@ This project builds upon several excellent open source projects:
 - The original trainer is based on D-fine with major modifications for handling pre-trained weights, DDP, and other features.
 - The architecture is for D-fine is same as the original paper and repo. 
 </details>
+
+
+### Training
+<b>Example training command:</b>
+```bash
+trolo train --config dfine_n # automatically find the config file
+```
+
+🔥 Automatically handle DDP by simply passing the GPUs to the CLI
+```bash
+trolo train --config dfine_n --device 0,1,2,3 
+```
+That's it!
+
+<b>Python API</b>
+
+```python
+from trolo.trainers import DetectionTrainer
+
+trainer = DetectionTrainer(config="dfine_n") # or pass custom config path
+trainer.train() # pass device = 0,1,2,3 to automatically handle DDP 
+```
+
+Visit Training Docs for more details
 
 
 ## Contributing
