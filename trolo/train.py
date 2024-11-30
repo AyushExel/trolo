@@ -17,7 +17,6 @@ from trolo.utils import dist_utils
 from trolo.loaders import YAMLConfig, yaml_utils
 from trolo.trainers import TASKS
 from trolo.utils.smart_defaults import infer_device
-from trolo.loaders.maps import get_dataset_config_path, get_model_config_path
 
 debug = False
 
