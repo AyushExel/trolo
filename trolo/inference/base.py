@@ -125,11 +125,14 @@ class BasePredictor(ABC):
         """Internal method to process video streams"""
         class_names = self.config.yaml_cfg.get("class_names", None)
 
-        video_sink = None
+
         if save:
             output_path = output_path or infer_output_path()
+            output_path = Path(output_path)
+            output_path = output_path.with_stem(output_path.stem + "_predictions.mp4")
             video_info = sv.VideoInfo.from_video_path(source)
-            video_sink = sv.VideoSink(target_path=output_path, video_info=video_info)
+            video_sink = sv.VideoSink(target_path=str(output_path), video_info=video_info).__enter__()
+
         with VideoStream(source, batch_size=batch_size) as stream:
 
             # Process stream in batches
