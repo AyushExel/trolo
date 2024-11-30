@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
 import json
 import numpy as np
+import supervision as sv
 from PIL import ImageDraw, ImageFont
 from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
 from trolo.inference.video import VideoStream
@@ -124,18 +125,12 @@ class BasePredictor(ABC):
         """Internal method to process video streams"""
         class_names = self.config.yaml_cfg.get("class_names", None)
 
+        video_sink = None
+        if save:
+            output_path = output_path or infer_output_path()
+            video_info = sv.VideoInfo.from_video_path(source)
+            video_sink = sv.VideoSink(target_path=output_path, video_info=video_info)
         with VideoStream(source, batch_size=batch_size) as stream:
-            # Get video properties
-            cap = stream.cap
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            # Initialize video writer if saving
-            if save:
-                output_path = output_path or infer_output_path()
-                fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-                out = cv2.VideoWriter(str(Path(output_path) / "output.mp4"), fourcc, fps, (width, height))
 
             # Process stream in batches
             for batch in stream:
@@ -153,15 +148,12 @@ class BasePredictor(ABC):
                     bgr_frame = cv2.cvtColor(np.array(viz_frame), cv2.COLOR_RGB2BGR)
 
                     if save:
-                        out.write(bgr_frame)
+                        video_sink.write_frame(frame=bgr_frame)
 
                     if show:
                         cv2.imshow("Video Stream", bgr_frame)
                         if cv2.waitKey(1) & 0xFF == ord("q"):
                             return
-
-            if save:
-                out.release()
 
             if show:
                 cv2.destroyAllWindows()
