@@ -1,6 +1,8 @@
-<img width="512" alt="Screenshot 2024-11-20 at 2 38 59 AM" src="https://github.com/user-attachments/assets/73311b13-a624-4736-8472-b22318bcd6b0">
+<img width="838" alt="387845954-73311b13-a624-4736-8472-b22318bcd6b0" src="https://github.com/user-attachments/assets/08091cad-703d-4d7d-84f6-5e6c310bf6c2">
+
 
 # trolo
+![pred_0](https://github.com/user-attachments/assets/144ae351-c520-4640-8081-3e9a0db9b432)
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
 
@@ -19,9 +21,42 @@ pip install trolo
 - 🚀 Fast video stream inference
 - 🧠 Automatic DDP handling
 
+
+## Available Models
+
+<details open>
+<summary><b>D-FINE</b></summary>
+
+The D-FINE model redefines regression tasks in DETR-based detectors using Fine-grained Distribution Refinement (FDR).
+[Official Paper](https://arxiv.org/abs/2410.13842) | [Official Repo](https://github.com/Peterande/D-FINE)
+![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
+
+( All models will be automatically downloaded when you pass the name for any task)
+| Model | Dataset | AP<sup>val</sup> | #Params | Latency | GFLOPs |
+| :---: | :---: | :---: |  :---: | :---: | :---: |
+`dfine-n` | COCO | **42.8** | 4M | 2.12ms | 7
+`dfine-s` | COCO | **48.5** | 10M | 3.49ms | 25
+`dfine-m` | COCO | **52.3** | 19M | 5.62ms | 57
+`dfine-l` | COCO | **54.0** | 31M | 8.07ms | 91
+`dfine-x` | COCO | **55.8** | 62M | 12.89ms | 202
+
+</details>
+
+<details>
+<summary><b>RT-DETR v3 (Coming Soon)</b></summary>
+</details>
+
+<details>
+<summary><b>RT-DETR v2 (Coming Soon)</b></summary>
+</details>
+
+<details>
+<summary><b>Trolo-2024 (WIP)</b></summary>
+</details>
+
+
 ## Quick Start
 
-![pred_0](https://github.com/user-attachments/assets/144ae351-c520-4640-8081-3e9a0db9b432)
 
 The CLI command structure is:
 
@@ -80,39 +115,6 @@ trainer.train() # pass device = 0,1,2,3 to automatically handle DDP
 ```
 
 Visit Training Docs for more details
-
-
-## Available Models
-
-<details open>
-<summary><b>D-FINE</b></summary>
-
-The D-FINE model redefines regression tasks in DETR-based detectors using Fine-grained Distribution Refinement (FDR).
-[Official Paper](https://arxiv.org/abs/2410.13842) | [Official Repo](https://github.com/Peterande/D-FINE)
-![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
-
-( All models will be automatically downloaded when you pass the name for any task)
-| Model | Dataset | AP<sup>val</sup> | #Params | Latency | GFLOPs |
-| :---: | :---: | :---: |  :---: | :---: | :---: |
-`dfine-n` | COCO | **42.8** | 4M | 2.12ms | 7
-`dfine-s` | COCO | **48.5** | 10M | 3.49ms | 25
-`dfine-m` | COCO | **52.3** | 19M | 5.62ms | 57
-`dfine-l` | COCO | **54.0** | 31M | 8.07ms | 91
-`dfine-x` | COCO | **55.8** | 62M | 12.89ms | 202
-
-</details>
-
-<details>
-<summary><b>RT-DETR v3 (Coming Soon)</b></summary>
-</details>
-
-<details>
-<summary><b>RT-DETR v2 (Coming Soon)</b></summary>
-</details>
-
-<details>
-<summary><b>Trolo-2024 (WIP)</b></summary>
-</details>
 
 
 ## Totally open source and free
