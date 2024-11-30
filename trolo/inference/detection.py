@@ -13,10 +13,12 @@ from ..utils.smart_defaults import infer_input_type, infer_input_path, get_image
 
 
 class DetectionPredictor(BasePredictor):
-    def __init__(self, 
-                 model: Union[str, Path] = None,  # Model name or checkpoint path
-                 config: Union[str, Path] = None,  # Config name or path
-                 device: Optional[str] = None):
+    def __init__(
+        self,
+        model: Union[str, Path] = None,  # Model name or checkpoint path
+        config: Union[str, Path] = None,  # Config name or path
+        device: Optional[str] = None,
+    ):
         """Initialize detection predictor
 
         Args:
@@ -31,7 +33,7 @@ class DetectionPredictor(BasePredictor):
 
         # Convert model to path if it's a name
         model = infer_pretrained_model(model)
-        
+
         # Load checkpoint first to check for config
         checkpoint = torch.load(model, map_location="cpu", weights_only=False)
 

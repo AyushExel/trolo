@@ -83,7 +83,6 @@ class BasePredictor(ABC):
         # Run prediction and visualization for images
         predictions, inputs = self.predict(input, return_inputs=True, conf_threshold=conf_threshold)
 
-
         # Try to get class names from model config
         class_names = self.config.yaml_cfg.get("class_names", None)
 
@@ -124,7 +123,6 @@ class BasePredictor(ABC):
         """Internal method to process video streams"""
         class_names = self.config.yaml_cfg.get("class_names", None)
 
-
         if save:
             output_path = output_path or infer_output_path()
             output_path = Path(output_path)
@@ -133,7 +131,6 @@ class BasePredictor(ABC):
             video_sink = sv.VideoSink(target_path=str(output_path), video_info=video_info).__enter__()
 
         with VideoStream(source, batch_size=batch_size) as stream:
-
             # Process stream in batches
             for batch in stream:
                 frames = batch["frames"]  # List of RGB numpy arrays
