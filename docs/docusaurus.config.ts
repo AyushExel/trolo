@@ -5,10 +5,12 @@ const config: Config = {
   title: 'Trolo',
   tagline: 'A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!',
   favicon: 'img/favicon.ico',
-  url: 'https://trolo.github.io',
-  baseUrl: '/',
+  url: 'https://ayushexel.github.io',
+  baseUrl: '/trolo/',
   organizationName: 'ayushexel',
   projectName: 'trolo',
+  deploymentBranch: 'gh-pages',
+  trailingSlash: true,
   
   themeConfig: {
     navbar: {

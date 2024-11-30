@@ -16,7 +16,7 @@ class DetectionPredictor(BasePredictor):
     def __init__(self, 
                  model: Union[str, Path] = None,  # Model name or checkpoint path
                  config: Union[str, Path] = None,  # Config name or path
-                 device: str = 'cpu'):
+                 device: Optional[str] = None):
         """Initialize detection predictor
         
         Args:
