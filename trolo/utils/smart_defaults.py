@@ -5,7 +5,7 @@ This module contains utility functions for smart defaults.
 import os
 import torch
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 from trolo.loaders.maps import MODEL_CONFIG_MAP, get_model_config_path
 from .assets import download_model
 
@@ -55,6 +55,7 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
     # If model name is in hub models list, download it
     local_path = download_model(model_path)
 
+    local_path = Path(local_path) if isinstance(local_path, str) else local_path
     if local_path and local_path.exists():
         return str(local_path.resolve())
             
