@@ -96,7 +96,7 @@ def infer_model_config_path(config_file: str = None):
     
 
 
-def infer_device(device: str = None):
+def infer_device(device: Optional[str] = None):
     """
     If no device is provided, check if CUDA is available and use the first available GPU.
     Otherwise, use CPU.
