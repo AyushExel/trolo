@@ -5,8 +5,9 @@ This module contains utility functions for smart defaults.
 import os
 import torch
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 from trolo.loaders.maps import MODEL_CONFIG_MAP, get_model_config_path
+from .assets import download_model
 
 def find_config_files() -> Dict[str, Path]:
     """
@@ -27,12 +28,11 @@ def find_config_files() -> Dict[str, Path]:
 # Global map of available config files
 CONFIG_FILES = find_config_files()
 
-DEFAULT_DOWNLOAD_DIR = "~/.trolo/models"
+DEFAULT_DOWNLOAD_DIR = "."
 DEFAULT_MODEL = "dfine_n.pth"
 DEFAULT_OUTPUT_DIR = "output"
 
 MODEL_HUB = "..."
-HUB_MODELS = ["fine_n_coco.pth"]
 
 
 
@@ -45,26 +45,22 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
         return model_path
         
     # Check in default model download directory
-    model_dir = Path.home() / '.trolo' / 'models'
+    model_dir = Path(DEFAULT_DOWNLOAD_DIR)
     model_dir.mkdir(parents=True, exist_ok=True)
     local_path = model_dir / model_path
     
     if local_path.exists():
         # Return the absolute path
         return str(local_path.resolve())
-        
     # If model name is in hub models list, download it
-    if model_path in HUB_MODELS:
-        # TODO: Implement actual download logic here
-        # Download model from MODEL_HUB to local_path
-        pass
-        
-        if local_path.exists():
-            return str(local_path.resolve())
+    local_path = download_model(model_path)
+
+    if local_path and local_path.exists():
+        return str(local_path.resolve())
             
     raise FileNotFoundError(
         f"Could not find model at {model_path} or in default model directory. "
-        f"For pretrained models, please ensure the model name is one of: {list(HUB_MODELS)}"
+        f"For pretrained models, please ensure the model name is found in the trolo model hub."
     )
 
 def infer_input_path(input_path: str = None):
@@ -142,8 +138,40 @@ def infer_output_path(output_path: str = DEFAULT_OUTPUT_DIR):
     # Find next available numbered path
     counter = 1
     while True:
-        new_path = output_path.parent / f"{output_path.name}_{counter}"
+        new_path = output_path / f"output_{counter}"
         if not new_path.exists():
             new_path.mkdir(parents=True)
             return str(new_path)
         counter += 1
+
+def infer_input_type(input_path: Union[str, Path]):
+    """
+    Infer the type of the input path.
+    """
+    input_path = input_path if isinstance(input_path, str) else str(input_path)
+    # Check if video
+    if input_path.endswith(('.mp4', '.avi', '.mov')):
+        return 'video'
+    # Check if image
+    elif input_path.endswith(('.jpg', '.jpeg', '.png')):
+        return 'image'
+    # check if directory
+    elif os.path.isdir(input_path):
+        return 'folder'
+    # Add special case for webcam
+    elif input_path == "0":
+        return 'webcam'
+    else:
+        raise ValueError(f"Unsupported input type: {input_path}")
+
+def get_images_from_folder(input_path: str):
+    """
+    Get all images from a folder non-recursively.
+    """
+    image_extensions = ('.jpg', '.jpeg', '.png')
+    imgs = []
+    for ext in image_extensions:
+        # Add case-insensitive matching by checking both upper and lowercase extensions
+        imgs.extend([str(p) for p in Path(input_path).glob(f'*{ext.lower()}')])
+        imgs.extend([str(p) for p in Path(input_path).glob(f'*{ext.upper()}')])
+    return imgs

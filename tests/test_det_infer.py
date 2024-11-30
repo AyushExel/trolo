@@ -3,8 +3,10 @@ from pathlib import Path
 import torch
 from PIL import Image
 import numpy as np
+import cv2
 
 from trolo.inference.detection import DetectionPredictor
+from trolo.inference.video import VideoStream
 from trolo.utils.smart_defaults import infer_input_path, infer_pretrained_model
 
 DEFAULT_MODEL = "dfine_n_coco.pth"
@@ -153,3 +155,134 @@ def test_confidence_thresholding(predictor, sample_image, conf_threshold):
 #        result = predictor.predict(Image.open(image_path).convert('RGB'))
 #        assert isinstance(result, dict)
 #        assert all(k in result for k in ['boxes', 'scores', 'labels'])
+
+@pytest.fixture
+def predictor():
+    return DetectionPredictor(
+        model="models/dfine_n.pth",
+        device='cuda' if torch.cuda.is_available() else 'cpu'
+    )
+
+@pytest.fixture
+def sample_video(tmp_path):
+    """Create a sample video file for testing"""
+    video_path = tmp_path / "test.mp4"
+    frames = 30
+    height, width = 480, 640
+    
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(str(video_path), fourcc, 30.0, (width, height))
+    
+    for _ in range(frames):
+        # Create random frame with a rectangle
+        frame = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
+        cv2.rectangle(frame, (100, 100), (200, 200), (255, 0, 0), 2)
+        out.write(frame)
+    
+    out.release()
+    return video_path
+
+
+def test_video_prediction_streaming(predictor, sample_video):
+    """Test video prediction in streaming mode"""
+    frame_count = 0
+    batch_sizes = [1, 4, 8]
+    
+    for batch_size in batch_sizes:
+        frame_count = 0
+        for predictions, frames in predictor.predict(
+            str(sample_video),
+            batch_size=batch_size,
+            stream=True,
+            return_inputs=True
+        ):
+            # Check batch dimensions
+            assert len(predictions) == len(frames) <= batch_size
+            
+            # Check prediction format
+            for pred in predictions:
+                assert all(k in pred for k in ['boxes', 'scores', 'labels'])
+                assert all(isinstance(v, torch.Tensor) for v in pred.values())
+            
+            # Check frame format
+            assert all(isinstance(f, Image.Image) for f in frames)
+            frame_count += len(frames)
+    
+        # Verify we processed all frames
+        cap = cv2.VideoCapture(str(sample_video))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+        assert frame_count == total_frames
+
+def test_video_prediction_collection(predictor, sample_video):
+    """Test video prediction in collection mode"""
+    predictions, frames = predictor.predict(
+        str(sample_video),
+        batch_size=4,
+        stream=False,
+        return_inputs=True
+    )
+    import pdb; pdb.set_trace()
+    # Verify we got all frames
+    cap = cv2.VideoCapture(str(sample_video))
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
+    
+    assert len(predictions) == len(frames) == total_frames
+    
+    # Check prediction format
+    for pred in predictions:
+        assert all(k in pred for k in ['boxes', 'scores', 'labels'])
+        assert all(isinstance(v, torch.Tensor) for v in pred.values())
+
+def test_webcam_simulation(predictor, monkeypatch):
+    """Test webcam processing by mocking VideoStream"""
+    class MockVideoStream:
+        def __init__(self, *args, **kwargs):
+            self.frame_count = 0
+            self.batch_size = kwargs.get('batch_size', 1)
+            
+        def __enter__(self):
+            return self
+            
+        def __exit__(self, *args):
+            pass
+            
+        def __iter__(self):
+            return self
+            
+        def __next__(self):
+            if self.frame_count >= 10:  # Simulate 10 frames
+                raise StopIteration
+                
+            frames = [np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8) 
+                     for _ in range(self.batch_size)]
+            self.frame_count += len(frames)
+            return {'frames': frames, 'frame_ids': list(range(len(frames)))}
+    
+    # Mock VideoStream
+    monkeypatch.setattr('trolo.inference.video.VideoStream', MockVideoStream)
+    
+    # Test webcam prediction
+    frame_count = 0
+    for predictions, frames in predictor.predict(
+        "0",  # webcam
+        batch_size=2,
+        stream=True,
+        return_inputs=True
+    ):
+        assert len(predictions) == len(frames) <= 2
+        frame_count += len(frames)
+    
+    assert frame_count == 10  # Verify we processed all mock frames
+
+def test_error_handling(predictor):
+    """Test error cases"""
+    with pytest.raises(ValueError):
+        # Test invalid input type
+        predictor.predict("nonexistent.xyz")
+    
+    with pytest.raises(ValueError):
+        # Test stream=True with image input
+        predictor.predict("image.jpg", stream=True)
+

@@ -1,4 +1,4 @@
-from typing import Union, List, Dict, Any, Tuple
+from typing import Union, List, Dict, Any, Tuple, Iterator, Optional
 import torch
 from PIL import Image
 import torchvision.transforms as T
@@ -9,6 +9,8 @@ from ..loaders import YAMLConfig
 from ..data.transforms import Compose
 from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
+from ..inference.video import VideoStream
+from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder
 
 class DetectionPredictor(BasePredictor):
     def __init__(self, 
@@ -76,7 +78,7 @@ class DetectionPredictor(BasePredictor):
     def load_model(self, model_path: str) -> torch.nn.Module:
         """Load detection model using config"""
         # Load checkpoint
-        checkpoint = torch.load(model_path, map_location='cpu')
+        checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
 
         if 'HGNetv2' in self.config.yaml_cfg:
             self.config.yaml_cfg['HGNetv2']['pretrained'] = False
@@ -144,44 +146,69 @@ class DetectionPredictor(BasePredictor):
         
     def predict(
         self, 
-        images: Union[str, List[str], Image.Image, List[Image.Image]], 
+        inputs: Optional[Union[str, List[str], Image.Image, List[Image.Image]]] = None, 
         conf_threshold: float = 0.5,
-        return_inputs: bool = False
-    ) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], List[Image.Image]]]:
+        return_inputs: bool = False,
+        batch_size: int = 1,
+        stream: Optional[bool] = None
+    ) -> Union[List[Dict[str, Any]], Tuple[List[Dict[str, Any]], List[Image.Image]], Iterator[Tuple[List[Dict[str, Any]], List[Image.Image]]]]:
         """
-        Predict on images with confidence thresholding
+        Predict on images or video with confidence thresholding
         
         Args:
-            images: PIL Image or list of PIL Images, or path or list of paths to images
+            inputs: PIL Image, list of PIL Images, path to image/video, or list of paths
             conf_threshold: Confidence threshold for detections (default: 0.5)
             return_inputs: Whether to return the original inputs
+            batch_size: Batch size for video processing
+            stream: If True and input is video, yield predictions for each batch
             
         Returns:
-            List of prediction dictionaries, one per image, each containing:
-                - boxes: tensor of shape (N, 4)
-                - scores: tensor of shape (N,)
-                - labels: tensor of shape (N,)
-            If return_inputs=True, also returns list of PIL images
+            If input is image(s):
+                List of prediction dictionaries, one per image, each containing:
+                    - boxes: tensor of shape (N, 4)
+                    - scores: tensor of shape (N,)
+                    - labels: tensor of shape (N,)
+                If return_inputs=True, also returns list of PIL images
+            
+            If input is video and stream=True:
+                Iterator yielding (predictions, frames) tuples for each batch
         """
-        # Get original image sizes before preprocessing
-        if isinstance(images, (str, Image.Image)):
-            images = [images]
+        # Handle string input paths
+        if inputs is None:
+            inputs = infer_input_path()
+        if isinstance(inputs, (str, Path)):
+            input_type = infer_input_type(inputs)
+            
+            if input_type in ['video', 'webcam']:
+                source = 0 if input_type == 'webcam' else inputs
+                return self._predict_video(
+                    source=source,
+                    batch_size=batch_size,
+                    conf_threshold=conf_threshold,
+                    return_inputs=return_inputs,
+                    stream=True if stream is None else stream
+                )
+            if stream:
+                raise ValueError("stream is only supported for video inputs")
+            if input_type == 'folder':
+                inputs = get_images_from_folder(inputs)
+        # Handle image inputs
+        if isinstance(inputs, (str, Image.Image)):
+            inputs = [inputs]
 
         original_sizes = []
-        inputs = []
-        for img in images:
-            if not isinstance(img, Image.Image):
+        input_images = []
+        for img in inputs:
+            if isinstance(img, str):
                 img = Image.open(img).convert('RGB')
-            inputs.append(img)
+            input_images.append(img)
             original_sizes.append((img.height, img.width))
-        
         # Process input
-        batch = self.preprocess(inputs)
+        batch = self.preprocess(input_images)
         
         # Run inference
         with torch.no_grad():
             outputs = self.model(batch)
-            # Pass original sizes to postprocess
             predictions = self.postprocess(outputs, original_sizes)
         
         # Filter by confidence while maintaining batch dimension
@@ -195,5 +222,44 @@ class DetectionPredictor(BasePredictor):
             })
         
         if return_inputs:
-            return filtered_predictions, inputs
+            return filtered_predictions, input_images
         return filtered_predictions
+
+    def _predict_video(
+        self,
+        source: Union[str, int],
+        batch_size: int = 1,
+        conf_threshold: float = 0.5,
+        return_inputs: bool = True,
+        stream: bool = True
+    ) -> Iterator[Tuple[List[Dict[str, Any]], List[Image.Image]]]:
+        """Internal method to process video streams"""
+        
+        with VideoStream(source, batch_size=batch_size) as video_stream:
+            if not stream:
+                # Collect all predictions if not streaming
+                all_predictions = []
+                all_frames = []
+                
+            for batch in video_stream:
+                frames = batch['frames']  # List of RGB numpy arrays
+                
+                # Convert frames to PIL Images
+                pil_frames = [Image.fromarray(frame) for frame in frames]
+                
+                # Get predictions for batch
+                predictions = self.predict(
+                    pil_frames, 
+                    conf_threshold=conf_threshold,
+                    return_inputs=False
+                )
+                
+                if stream:
+                    yield predictions, pil_frames if return_inputs else predictions
+                else:
+                    all_predictions.extend(predictions)
+                    if return_inputs:
+                        all_frames.extend(pil_frames)
+                        
+            if not stream:
+                return all_predictions, all_frames if return_inputs else all_predictions
