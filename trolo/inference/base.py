@@ -4,7 +4,7 @@ from typing import Union, List, Dict, Any, Optional, Tuple
 import json
 import numpy as np
 from PIL import ImageDraw, ImageFont
-from trolo.utils.smart_defaults import infer_input_type, infer_output_path
+from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
 from trolo.inference.video import VideoStream
 
 
@@ -14,8 +14,8 @@ import cv2
 
 
 class BasePredictor(ABC):
-    def __init__(self, model_path: str, device: str = "cpu"):
-        self.device = torch.device(device)
+    def __init__(self, model_path: str, device: Optional[str] = None):
+        self.device = torch.device(infer_device(device))
         self.model = self.load_model(model_path)
         self.model.to(self.device)
         self.model.eval()

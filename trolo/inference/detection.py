@@ -10,16 +10,14 @@ from ..data.transforms import Compose
 from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
 from ..inference.video import VideoStream
-from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder
+from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder, infer_pretrained_model
 
 
 class DetectionPredictor(BasePredictor):
-    def __init__(
-        self,
-        model: Union[str, Path] = None,  # Model name or checkpoint path
-        config: Union[str, Path] = None,  # Config name or path
-        device: str = "cpu",
-    ):
+    def __init__(self, 
+                 model: Union[str, Path] = None,  # Model name or checkpoint path
+                 config: Union[str, Path] = None,  # Config name or path
+                 device: Optional[str] = None):
         """Initialize detection predictor
 
         Args:
@@ -33,10 +31,8 @@ class DetectionPredictor(BasePredictor):
             raise ValueError("Must specify model name or checkpoint path")
 
         # Convert model to path if it's a name
-        if isinstance(model, str) and not Path(model).exists():
-            print(f"Warning: Model path {model} does not exist, inferring config from model name")
-            model = get_model_config_path(model)
-
+        model = infer_pretrained_model(model)
+        
         # Load checkpoint first to check for config
         checkpoint = torch.load(model, map_location="cpu", weights_only=False)
 
