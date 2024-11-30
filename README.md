@@ -17,7 +17,7 @@ A framework for harnessing the power of transformers with YOLO models and other 
 Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ayushexel/trolo/blob/master/recipes/quickstart.ipynb)
 
 🔥 **NEW** 🔥 D-Fine models are now available. Inspired by RT-DETR outperform all real-time detectors including YOLO-series models
-![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
+<img src="https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png" alt="D-FINE Model Stats" width="1024">
 
 ## Installation
 
