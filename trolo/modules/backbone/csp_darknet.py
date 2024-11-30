@@ -1,5 +1,3 @@
-
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -16,12 +14,13 @@ def autopad(k, p=None):
         p = k // 2 if isinstance(k, int) else [x // 2 for x in k]
     return p
 
+
 def make_divisible(c, d):
     return math.ceil(c / d) * d
 
 
 class Conv(nn.Module):
-    def __init__(self, cin, cout, k=1, s=1, p=None, g=1, act='silu') -> None:
+    def __init__(self, cin, cout, k=1, s=1, p=None, g=1, act="silu") -> None:
         super().__init__()
         self.conv = nn.Conv2d(cin, cout, k, s, autopad(k, p), groups=g, bias=False)
         self.bn = nn.BatchNorm2d(cout)
@@ -33,7 +32,7 @@ class Conv(nn.Module):
 
 class Bottleneck(nn.Module):
     # Standard bottleneck
-    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5, act='silu'):
+    def __init__(self, c1, c2, shortcut=True, g=1, e=0.5, act="silu"):
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1, act=act)
@@ -46,7 +45,9 @@ class Bottleneck(nn.Module):
 
 class C3(nn.Module):
     # CSP Bottleneck with 3 convolutions
-    def __init__(self, c1, c2, n=1, shortcut=True, g=1, e=0.5, act='silu'):  # ch_in, ch_out, number, shortcut, groups, expansion
+    def __init__(
+        self, c1, c2, n=1, shortcut=True, g=1, e=0.5, act="silu"
+    ):  # ch_in, ch_out, number, shortcut, groups, expansion
         super().__init__()
         c_ = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1, act=act)
@@ -60,7 +61,7 @@ class C3(nn.Module):
 
 class SPPF(nn.Module):
     # Spatial Pyramid Pooling - Fast (SPPF) layer for YOLOv5 by Glenn Jocher
-    def __init__(self, c1, c2, k=5, act='silu'):  # equivalent to SPP(k=(5, 9, 13))
+    def __init__(self, c1, c2, k=5, act="silu"):  # equivalent to SPP(k=(5, 9, 13))
         super().__init__()
         c_ = c1 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1, act=act)
@@ -70,7 +71,7 @@ class SPPF(nn.Module):
     def forward(self, x):
         x = self.cv1(x)
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')  # suppress torch 1.9.0 max_pool2d() warning
+            warnings.simplefilter("ignore")  # suppress torch 1.9.0 max_pool2d() warning
             y1 = self.m(x)
             y2 = self.m(y1)
             return self.cv2(torch.cat([x, y1, y2, self.m(y2)], 1))
@@ -78,9 +79,16 @@ class SPPF(nn.Module):
 
 @register()
 class CSPDarkNet(nn.Module):
-    __share__ = ['depth_multi', 'width_multi']
+    __share__ = ["depth_multi", "width_multi"]
 
-    def __init__(self, in_channels=3, width_multi=1.0, depth_multi=1.0, return_idx=[2, 3, -1], act='silu', ) -> None:
+    def __init__(
+        self,
+        in_channels=3,
+        width_multi=1.0,
+        depth_multi=1.0,
+        return_idx=[2, 3, -1],
+        act="silu",
+    ) -> None:
         super().__init__()
 
         channels = [64, 128, 256, 512, 1024]
@@ -120,15 +128,22 @@ class CSPPAN(nn.Module):
                                  | up       | conv /2
     P3 -----------------------> concat ---> c3 ---------------------> det
     """
-    __share__ = ['depth_multi', ]
 
-    def __init__(self, in_channels=[256, 512, 1024], depth_multi=1., act='silu') -> None:
+    __share__ = [
+        "depth_multi",
+    ]
+
+    def __init__(self, in_channels=[256, 512, 1024], depth_multi=1.0, act="silu") -> None:
         super().__init__()
         depth = max(round(3 * depth_multi), 1)
 
         self.out_channels = in_channels
-        self.fpn_stems = nn.ModuleList([Conv(cin, cout, 1, 1, act=act) for cin, cout in zip(in_channels[::-1], in_channels[::-1][1:])])
-        self.fpn_csps = nn.ModuleList([C3(cin, cout, depth, False, act=act) for cin, cout in zip(in_channels[::-1], in_channels[::-1][1:])])
+        self.fpn_stems = nn.ModuleList(
+            [Conv(cin, cout, 1, 1, act=act) for cin, cout in zip(in_channels[::-1], in_channels[::-1][1:])]
+        )
+        self.fpn_csps = nn.ModuleList(
+            [C3(cin, cout, depth, False, act=act) for cin, cout in zip(in_channels[::-1], in_channels[::-1][1:])]
+        )
 
         self.pan_stems = nn.ModuleList([Conv(c, c, 3, 2, act=act) for c in in_channels[:-1]])
         self.pan_csps = nn.ModuleList([C3(c, c, depth, False, act=act) for c in in_channels[1:]])
@@ -140,9 +155,9 @@ class CSPPAN(nn.Module):
                 feat = self.fpn_stems[i](feat)
                 fpn_feats.append(feat)
             else:
-                _feat = F.interpolate(fpn_feats[-1], scale_factor=2, mode='nearest')
+                _feat = F.interpolate(fpn_feats[-1], scale_factor=2, mode="nearest")
                 feat = torch.concat([_feat, feat], dim=1)
-                feat = self.fpn_csps[i-1](feat)
+                feat = self.fpn_csps[i - 1](feat)
                 if i < len(self.fpn_stems):
                     feat = self.fpn_stems[i](feat)
                 fpn_feats.append(feat)
@@ -152,25 +167,24 @@ class CSPPAN(nn.Module):
             if i == 0:
                 pan_feats.append(feat)
             else:
-                _feat = self.pan_stems[i-1](pan_feats[-1])
+                _feat = self.pan_stems[i - 1](pan_feats[-1])
                 feat = torch.concat([_feat, feat], dim=1)
-                feat = self.pan_csps[i-1](feat)
+                feat = self.pan_csps[i - 1](feat)
                 pan_feats.append(feat)
 
         return pan_feats
 
 
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     data = torch.rand(1, 3, 320, 640)
 
     width_multi = 0.75
     depth_multi = 0.33
 
-    m = CSPDarkNet(3, width_multi=width_multi, depth_multi=depth_multi, act='silu')
+    m = CSPDarkNet(3, width_multi=width_multi, depth_multi=depth_multi, act="silu")
     outputs = m(data)
     print([o.shape for o in outputs])
 
-    m = CSPPAN(in_channels=m.out_channels, depth_multi=depth_multi, act='silu')
+    m = CSPPAN(in_channels=m.out_channels, depth_multi=depth_multi, act="silu")
     outputs = m(outputs)
     print([o.shape for o in outputs])

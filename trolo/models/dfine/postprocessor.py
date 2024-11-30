@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,7 +7,7 @@ import torchvision
 from trolo.loaders.registry import register
 
 
-__all__ = ['DFINEPostProcessor']
+__all__ = ["DFINEPostProcessor"]
 
 
 def mod(a, b):
@@ -18,20 +17,9 @@ def mod(a, b):
 
 @register()
 class DFINEPostProcessor(nn.Module):
-    __share__ = [
-        'num_classes',
-        'use_focal_loss',
-        'num_top_queries',
-        'remap_mscoco_category'
-    ]
+    __share__ = ["num_classes", "use_focal_loss", "num_top_queries", "remap_mscoco_category"]
 
-    def __init__(
-        self,
-        num_classes=80,
-        use_focal_loss=True,
-        num_top_queries=300,
-        remap_mscoco_category=False
-    ) -> None:
+    def __init__(self, num_classes=80, use_focal_loss=True, num_top_queries=300, remap_mscoco_category=False) -> None:
         super().__init__()
         self.use_focal_loss = use_focal_loss
         self.num_top_queries = num_top_queries
@@ -40,14 +28,14 @@ class DFINEPostProcessor(nn.Module):
         self.deploy_mode = False
 
     def extra_repr(self) -> str:
-        return f'use_focal_loss={self.use_focal_loss}, num_classes={self.num_classes}, num_top_queries={self.num_top_queries}'
+        return f"use_focal_loss={self.use_focal_loss}, num_classes={self.num_classes}, num_top_queries={self.num_top_queries}"
 
     # def forward(self, outputs, orig_target_sizes):
     def forward(self, outputs, orig_target_sizes: torch.Tensor):
-        logits, boxes = outputs['pred_logits'], outputs['pred_boxes']
+        logits, boxes = outputs["pred_logits"], outputs["pred_boxes"]
         # orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
 
-        bbox_pred = torchvision.ops.box_convert(boxes, in_fmt='cxcywh', out_fmt='xyxy')
+        bbox_pred = torchvision.ops.box_convert(boxes, in_fmt="cxcywh", out_fmt="xyxy")
         bbox_pred *= orig_target_sizes.repeat(1, 2).unsqueeze(1)
 
         if self.use_focal_loss:
@@ -74,8 +62,12 @@ class DFINEPostProcessor(nn.Module):
         # TODO
         if self.remap_mscoco_category:
             from ...data.dataset import mscoco_label2category
-            labels = torch.tensor([mscoco_label2category[int(x.item())] for x in labels.flatten()])\
-                .to(boxes.device).reshape(labels.shape)
+
+            labels = (
+                torch.tensor([mscoco_label2category[int(x.item())] for x in labels.flatten()])
+                .to(boxes.device)
+                .reshape(labels.shape)
+            )
 
         results = []
         for lab, box, sco in zip(labels, boxes, scores):
@@ -84,8 +76,9 @@ class DFINEPostProcessor(nn.Module):
 
         return results
 
-
-    def deploy(self, ):
+    def deploy(
+        self,
+    ):
         self.eval()
         self.deploy_mode = True
         return self

@@ -4,9 +4,10 @@ from PIL import Image
 import numpy as np
 from pathlib import Path
 
+
 def create_dummy_coco_dataset(root_dir="./data/dummy_coco", num_images=5, num_objects_per_image=3):
     """Create a COCO format dataset for testing that matches COCO category IDs"""
-    
+
     # Create directory structure
     root_dir = Path(root_dir)
     (root_dir / "train2017").mkdir(parents=True, exist_ok=True)
@@ -94,7 +95,7 @@ def create_dummy_coco_dataset(root_dir="./data/dummy_coco", num_images=5, num_ob
         {"id": 87, "name": "scissors", "supercategory": "indoor"},
         {"id": 88, "name": "teddy bear", "supercategory": "indoor"},
         {"id": 89, "name": "hair drier", "supercategory": "indoor"},
-        {"id": 90, "name": "toothbrush", "supercategory": "indoor"}
+        {"id": 90, "name": "toothbrush", "supercategory": "indoor"},
     ]
 
     def create_split(split_name):
@@ -110,41 +111,36 @@ def create_dummy_coco_dataset(root_dir="./data/dummy_coco", num_images=5, num_ob
             img_path = root_dir / f"{split_name}2017" / f"{img_id:012d}.jpg"
             img.save(img_path)
 
-            images.append({
-                "id": img_id,
-                "file_name": f"{img_id:012d}.jpg",
-                "height": img_size[1],
-                "width": img_size[0]
-            })
+            images.append(
+                {"id": img_id, "file_name": f"{img_id:012d}.jpg", "height": img_size[1], "width": img_size[0]}
+            )
 
             # Create random annotations for this image
             for _ in range(num_objects_per_image):
                 # Get a random category
                 category = categories[np.random.randint(0, len(categories))]
-                
+
                 # Random box dimensions
                 x = np.random.randint(0, img_size[0] - 100)
                 y = np.random.randint(0, img_size[1] - 100)
                 w = np.random.randint(50, 100)
                 h = np.random.randint(50, 100)
 
-                annotations.append({
-                    "id": ann_id,
-                    "image_id": img_id,
-                    "category_id": category["id"],  # Using actual COCO category ID
-                    "bbox": [x, y, w, h],
-                    "area": w * h,
-                    "iscrowd": 0
-                })
+                annotations.append(
+                    {
+                        "id": ann_id,
+                        "image_id": img_id,
+                        "category_id": category["id"],  # Using actual COCO category ID
+                        "bbox": [x, y, w, h],
+                        "area": w * h,
+                        "iscrowd": 0,
+                    }
+                )
                 ann_id += 1
 
         # Create annotation file
-        ann_file = {
-            "images": images,
-            "annotations": annotations,
-            "categories": categories
-        }
-        
+        ann_file = {"images": images, "annotations": annotations, "categories": categories}
+
         with open(root_dir / "annotations" / f"instances_{split_name}2017.json", "w") as f:
             json.dump(ann_file, f)
 
@@ -157,20 +153,22 @@ def create_dummy_coco_dataset(root_dir="./data/dummy_coco", num_images=5, num_ob
         "dataset": {
             "train": {
                 "img_folder": str(root_dir / "train2017"),
-                "ann_file": str(root_dir / "annotations/instances_train2017.json")
+                "ann_file": str(root_dir / "annotations/instances_train2017.json"),
             },
             "val": {
                 "img_folder": str(root_dir / "val2017"),
-                "ann_file": str(root_dir / "annotations/instances_val2017.json")
-            }
+                "ann_file": str(root_dir / "annotations/instances_val2017.json"),
+            },
         }
     }
 
     with open(root_dir / "config.yml", "w") as f:
         import yaml
+
         yaml.dump(config, f)
 
     return root_dir
+
 
 if __name__ == "__main__":
     dataset_path = create_dummy_coco_dataset()
