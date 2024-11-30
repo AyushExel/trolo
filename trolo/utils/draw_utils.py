@@ -8,9 +8,9 @@ from trolo.utils.box_ops import to_sv
 
 
 def draw_predictions(
-        image: Union[Image.Image, List[Image.Image]],
-        predictions: List[Dict[str, Any]],
-        class_names: Optional[List[str]] = None,
+    image: Union[Image.Image, List[Image.Image]],
+    predictions: List[Dict[str, Any]],
+    class_names: Optional[List[str]] = None,
 ) -> List[Image.Image]:
     """Internal method to visualize predictions
 
@@ -39,14 +39,12 @@ def draw_predictions(
 
             labels = [
                 f"{detections['class_name'][class_id]} - {confidence:.2f}"
-                for class_id, confidence
-                in zip(detections.class_id, detections.confidence)
+                for class_id, confidence in zip(detections.class_id, detections.confidence)
             ]
         else:
             labels = [
                 f"{class_id} {confidence:.2f}"
-                for class_id, confidence
-                in zip(detections.class_id, detections.confidence)
+                for class_id, confidence in zip(detections.class_id, detections.confidence)
             ]
 
         img = box_annotator.annotate(img, detections)
