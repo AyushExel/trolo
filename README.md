@@ -1,7 +1,7 @@
 <img width="838" alt="387845954-73311b13-a624-4736-8472-b22318bcd6b0" src="https://github.com/user-attachments/assets/08091cad-703d-4d7d-84f6-5e6c310bf6c2">
 
 <div align="center">
-  <a href="https://colab.research.google.com/github/ayushexel/trolo/blob/main/recipes/quickstart.ipynb">
+  <a href="https://colab.research.google.com/github/ayushexel/trolo/blob/master/recipes/quickstart.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
   </a>
   <a href="https://ayushexel.github.io/trolo/intro/">
@@ -14,12 +14,19 @@
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
 
-Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ayushexel/trolo/blob/main/recipes/quickstart.ipynb)
+> **Note**: This is an early release. The package is under active development. Please report any issues and I'll try to fix them ASAP.
+
+Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ayushexel/trolo/blob/master/recipes/quickstart.ipynb)
+
+🔥 **NEW** 🔥 D-Fine models are now available. Inspired by RT-DETR outperform all real-time detectors including YOLO-series models
+<img src="https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png" alt="D-FINE Model Stats" width="1024">
+
 ## Installation
 
 ```bash
 pip install trolo
 ```
+
 
 ## Features
 
@@ -130,13 +137,14 @@ Visit Training Docs for more details
 
 TLDR: This is a non-profit project.Use it, modify it, copy it, do whatever you want with it. And if something doesn't allow you to do that, please open an issue.
 
-<details>
+<details open>
 <summary>More details</summary>
-- Apache 2.0
-- The license has simply been copied from official apache repo. Please open an issue if something doesn't allow you to use it. 
-- This project is built on top of open licensed projects as mentioned below.
 
-I intend to keep this project free and open source FOREVER. There are no plans for direct/indirect monetization of this project. I only accept sponsorships for compute resources to train models and perform independent research.
+* Apache 2.0
+
+* The license has simply been copied from official apache repo. Please open an issue if something doesn't allow you to use it. 
+* This project is built on top of open licensed projects as mentioned below.
+* I intend to keep this project free and open source FOREVER. There are no plans for direct/indirect monetization of this project. I only accept sponsorships for compute resources to train models and perform independent research.
 </details>
 
 ## Credits

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .base import BasePredictor
 from ..loaders import YAMLConfig
-from ..data.transforms import Compose
 from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
 from ..inference.video import VideoStream

@@ -4,7 +4,6 @@ from trolo.trainers.detection import DetectionTrainer
 from trolo.inference.detection import DetectionPredictor
 from trolo.utils.smart_defaults import (
     infer_device,
-    infer_input_path,
     infer_pretrained_model,
     infer_output_path,
     DEFAULT_MODEL,
