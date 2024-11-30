@@ -37,4 +37,4 @@ trainer.train(device="0,1,2,3")
 
 ## Configuration
 
-Training configurations can be customized through YAML files. See the [configuration guide](TODO) for details. 
+Training configurations can be customized through YAML files. See the configuration for details. 

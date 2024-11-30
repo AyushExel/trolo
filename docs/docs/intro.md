@@ -37,7 +37,7 @@ The D-FINE model redefines regression tasks in DETR-based detectors using Fine-g
 | dfine-s | 48.5 | 10M | 3.49ms |
 | dfine-m | 52.3 | 19M | 5.62ms |
 
-Find all the available models [here](/docs/docs/models/index.md).
+Find all the available models [here](/models/index.md).
 
 # Inference
 
