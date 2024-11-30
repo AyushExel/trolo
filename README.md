@@ -14,6 +14,8 @@
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
 
+> **Note**: This is an early release. The package is under active development. Please report any issues and I'll try to fix them ASAP.
+
 Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ayushexel/trolo/blob/master/recipes/quickstart.ipynb)
 
 🔥 **NEW** 🔥 D-Fine models are now available. Inspired by RT-DETR outperform all real-time detectors including YOLO-series models
@@ -24,8 +26,6 @@ Quickstart on Colab: [![Open In Colab](https://colab.research.google.com/assets/
 ```bash
 pip install trolo
 ```
-
-> **Note**: This is an early release. The package is under active development. Please report any issues and I'll try to fix them ASAP.
 
 
 ## Features
