@@ -20,6 +20,40 @@ pip install trolo
 - 🚀 Fast video stream inference
 - 🧠 Automatic DDP handling
 
+
+## Available Models
+
+<details open>
+<summary><b>D-FINE</b></summary>
+
+The D-FINE model redefines regression tasks in DETR-based detectors using Fine-grained Distribution Refinement (FDR).
+[Official Paper](https://arxiv.org/abs/2410.13842) | [Official Repo](https://github.com/Peterande/D-FINE)
+![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
+
+( All models will be automatically downloaded when you pass the name for any task)
+| Model | Dataset | AP<sup>val</sup> | #Params | Latency | GFLOPs |
+| :---: | :---: | :---: |  :---: | :---: | :---: |
+`dfine-n` | COCO | **42.8** | 4M | 2.12ms | 7
+`dfine-s` | COCO | **48.5** | 10M | 3.49ms | 25
+`dfine-m` | COCO | **52.3** | 19M | 5.62ms | 57
+`dfine-l` | COCO | **54.0** | 31M | 8.07ms | 91
+`dfine-x` | COCO | **55.8** | 62M | 12.89ms | 202
+
+</details>
+
+<details>
+<summary><b>RT-DETR v3 (Coming Soon)</b></summary>
+</details>
+
+<details>
+<summary><b>RT-DETR v2 (Coming Soon)</b></summary>
+</details>
+
+<details>
+<summary><b>Trolo-2024 (WIP)</b></summary>
+</details>
+
+
 ## Quick Start
 
 
@@ -57,37 +91,29 @@ poltted_preds = predictor.visualize(show=True, save=True) # or get visualized ou
 ```
 Visit Inference Docs for more details
 
-## Available Models
 
-<details open>
-<summary><b>D-FINE</b></summary>
+### Training
+<b>Example training command:</b>
+```bash
+trolo train --config dfine_n # automatically find the config file
+```
 
-The D-FINE model redefines regression tasks in DETR-based detectors using Fine-grained Distribution Refinement (FDR).
-[Official Paper](https://arxiv.org/abs/2410.13842) | [Official Repo](https://github.com/Peterande/D-FINE)
-![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
+🔥 Automatically handle DDP by simply passing the GPUs to the CLI
+```bash
+trolo train --config dfine_n --device 0,1,2,3 
+```
+That's it!
 
-( All models will be automatically downloaded when you pass the name for any task)
-| Model | Dataset | AP<sup>val</sup> | #Params | Latency | GFLOPs |
-| :---: | :---: | :---: |  :---: | :---: | :---: |
-`dfine-n` | COCO | **42.8** | 4M | 2.12ms | 7
-`dfine-s` | COCO | **48.5** | 10M | 3.49ms | 25
-`dfine-m` | COCO | **52.3** | 19M | 5.62ms | 57
-`dfine-l` | COCO | **54.0** | 31M | 8.07ms | 91
-`dfine-x` | COCO | **55.8** | 62M | 12.89ms | 202
+<b>Python API</b>
 
-</details>
+```python
+from trolo.trainers import DetectionTrainer
 
-<details>
-<summary><b>RT-DETR v3 (Coming Soon)</b></summary>
-</details>
+trainer = DetectionTrainer(config="dfine_n") # or pass custom config path
+trainer.train() # pass device = 0,1,2,3 to automatically handle DDP 
+```
 
-<details>
-<summary><b>RT-DETR v2 (Coming Soon)</b></summary>
-</details>
-
-<details>
-<summary><b>Trolo-2024 (WIP)</b></summary>
-</details>
+Visit Training Docs for more details
 
 
 ## Totally open source and free
@@ -117,30 +143,6 @@ This project builds upon several excellent open source projects:
 - The original trainer is based on D-fine with major modifications for handling pre-trained weights, DDP, and other features.
 - The architecture is for D-fine is same as the original paper and repo. 
 </details>
-
-
-### Training
-<b>Example training command:</b>
-```bash
-trolo train --config dfine_n # automatically find the config file
-```
-
-🔥 Automatically handle DDP by simply passing the GPUs to the CLI
-```bash
-trolo train --config dfine_n --device 0,1,2,3 
-```
-That's it!
-
-<b>Python API</b>
-
-```python
-from trolo.trainers import DetectionTrainer
-
-trainer = DetectionTrainer(config="dfine_n") # or pass custom config path
-trainer.train() # pass device = 0,1,2,3 to automatically handle DDP 
-```
-
-Visit Training Docs for more details
 
 
 ## Contributing
