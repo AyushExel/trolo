@@ -2,18 +2,14 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Union, List, Dict, Any, Optional, Tuple
 
-import numpy as np
 import supervision as sv
-
-from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
-from trolo.inference.video import VideoStream
-from trolo.utils.box_ops import to_sv
-from trolo.utils.draw_utils import draw_predictions
-
-
 import torch
 from PIL import Image
 import cv2
+
+from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
+from trolo.inference.video import VideoStream
+from trolo.utils.draw_utils import draw_predictions
 
 
 class BasePredictor(ABC):
@@ -151,7 +147,7 @@ class BasePredictor(ABC):
 
                 # Convert back to BGR for OpenCV
                 for viz_frame in viz_frames:
-                    bgr_frame = cv2.cvtColor(np.array(viz_frame), cv2.COLOR_RGB2BGR)
+                    bgr_frame = sv.pillow_to_cv2(viz_frame)
 
                     if save:
                         video_sink.write_frame(frame=bgr_frame)
