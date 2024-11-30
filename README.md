@@ -1,17 +1,14 @@
-<img width="1024" alt="Screenshot 2024-11-20 at 2 38 59 AM" src="https://github.com/user-attachments/assets/73311b13-a624-4736-8472-b22318bcd6b0">
+<img width="512" alt="Screenshot 2024-11-20 at 2 38 59 AM" src="https://github.com/user-attachments/assets/73311b13-a624-4736-8472-b22318bcd6b0">
 
 # trolo
 
 A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!
-
-> **Note**: This project is currently in very early development and only supports the D-FINE model architecture.
 
 ## Installation
 
 ```bash
 pip install trolo
 ```
-
 
 ## Features
 
@@ -116,20 +113,6 @@ The D-FINE model redefines regression tasks in DETR-based detectors using Fine-g
 <details>
 <summary><b>Trolo-2024 (WIP)</b></summary>
 </details>
-
-## Advanced Features
-### Fast Video Stream Inference
-
-
-
-## API Documentation
-
-Coming soon! The API documentation will include:
-
-- Model configuration
-- Training pipelines
-- Inference utilities
-- Custom dataset integration
 
 
 ## Totally open source and free

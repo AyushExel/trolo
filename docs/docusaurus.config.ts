@@ -2,21 +2,23 @@ import {themes as prismThemes} from 'prism-react-renderer';
 import type {Config} from '@docusaurus/types';
 
 const config: Config = {
-  title: 'trolo',
-  tagline: 'Completely Open SDK for Transformer + YOLO and other SSD models for computer vision',
+  title: 'Trolo',
+  tagline: 'A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!',
   favicon: 'img/favicon.ico',
   url: 'https://trolo.github.io',
   baseUrl: '/',
+  organizationName: 'ayushexel',
+  projectName: 'trolo',
   
   themeConfig: {
     navbar: {
-      title: 'trolo',
+      title: 'Trolo',
       items: [
         {
           type: 'docSidebar',
           sidebarId: 'tutorialSidebar',
           position: 'left',
-          label: 'Docs',
+          label: 'Documentation',
         },
         {
           href: 'https://github.com/ayushexel/trolo',
@@ -29,11 +31,15 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Documentation',
           items: [
             {
-              label: 'Tutorial',
-              to: '/docs/intro',
+              label: 'Quickstart',
+              to: '/intro',
+            },
+            {
+              label: 'Models',
+              to: '/models',
             },
           ],
         },
@@ -41,54 +47,15 @@ const config: Config = {
           title: 'Community',
           items: [
             {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-            },
-            {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
-            },
-          ],
-        },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
+              label: 'GitHub Issues',
+              href: 'https://github.com/ayushexel/trolo/issues',
             },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} trolo. Built with Docusaurus.`,
     },
-    prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
-    },
-  } satisfies Preset.ThemeConfig,
-  plugins: [
-    function webpackPlugin(context, options) {
-      return {
-        name: 'webpack-plugin',
-        configureWebpack(config, isServer, utils) {
-          return {
-            cache: false  // or your preferred cache configuration
-          };
-        },
-      };
-    },
-  ],
-  onBrokenLinks: 'throw',
-  onBrokenMarkdownLinks: 'warn',
+  },
   presets: [
     [
       'classic',
@@ -96,8 +63,12 @@ const config: Config = {
         docs: {
           routeBasePath: '/',
           sidebarPath: './sidebars.js',
+          editUrl: 'https://github.com/ayushexel/trolo/tree/main/docs/',
         },
         blog: false,
+        theme: {
+          customCss: './src/css/custom.css',
+        },
       },
     ],
   ],

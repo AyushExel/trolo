@@ -35,7 +35,7 @@ class DetectionPredictor(BasePredictor):
             model = get_model_config_path(model)
         
         # Load checkpoint first to check for config
-        checkpoint = torch.load(model, map_location='cpu')
+        checkpoint = torch.load(model, map_location='cpu', weights_only=False)
         
         if config is None:
             if 'cfg' in checkpoint:
