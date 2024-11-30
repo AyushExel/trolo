@@ -3,11 +3,13 @@ from pathlib import Path
 import torch
 from PIL import Image
 import numpy as np
+import cv2
 
 from trolo.inference.detection import DetectionPredictor
+from trolo.inference.video import VideoStream
 from trolo.utils.smart_defaults import infer_input_path, infer_pretrained_model
 
-DEFAULT_MODEL = "dfine_n_coco.pth"
+DEFAULT_MODEL = "dfine_n.pth"
 
 @pytest.fixture(scope="session")
 def model_path():
@@ -111,16 +113,6 @@ def test_different_input_sizes(predictor, sample_image, size):
     assert result['boxes'][:, [0, 2]].max() <= size[0]  # x coordinates
     assert result['boxes'][:, [1, 3]].max() <= size[1]  # y coordinates
 
-def test_invalid_inputs(predictor):
-    """Test handling of invalid inputs"""
-    with pytest.raises(Exception):
-        predictor.predict(None)
-    
-    with pytest.raises(Exception):
-        predictor.predict([])
-    
-    with pytest.raises(FileNotFoundError):
-        predictor.predict("nonexistent.jpg")
 
 @pytest.mark.parametrize("conf_threshold", [0.3, 0.5, 0.7])
 def test_confidence_thresholding(predictor, sample_image, conf_threshold):
@@ -153,3 +145,74 @@ def test_confidence_thresholding(predictor, sample_image, conf_threshold):
 #        result = predictor.predict(Image.open(image_path).convert('RGB'))
 #        assert isinstance(result, dict)
 #        assert all(k in result for k in ['boxes', 'scores', 'labels'])
+
+@pytest.fixture
+def predictor():
+    return DetectionPredictor(
+        model="models/dfine_n.pth",
+        device='cuda' if torch.cuda.is_available() else 'cpu'
+    )
+
+@pytest.fixture
+def sample_video(tmp_path):
+    """Create a sample video file for testing"""
+    video_path = tmp_path / "test.mp4"
+    frames = 30
+    height, width = 480, 640
+    
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(str(video_path), fourcc, 30.0, (width, height))
+    
+    for _ in range(frames):
+        # Create random frame with a rectangle
+        frame = np.random.randint(0, 255, (height, width, 3), dtype=np.uint8)
+        cv2.rectangle(frame, (100, 100), (200, 200), (255, 0, 0), 2)
+        out.write(frame)
+    
+    out.release()
+    return video_path
+
+
+def test_video_prediction_streaming(predictor, sample_video):
+    """Test video prediction in streaming mode"""
+    frame_count = 0
+    batch_sizes = [1, 4, 8]
+    
+    for batch_size in batch_sizes:
+        frame_count = 0
+        for predictions, frames in predictor.predict(
+            str(sample_video),
+            batch_size=batch_size,
+            stream=True,
+            return_inputs=True
+        ):
+            # Check batch dimensions
+            assert len(predictions) == len(frames) <= batch_size
+            
+            # Check prediction format
+            for pred in predictions:
+                assert all(k in pred for k in ['boxes', 'scores', 'labels'])
+                assert all(isinstance(v, torch.Tensor) for v in pred.values())
+            
+            # Check frame format
+            assert all(isinstance(f, Image.Image) for f in frames)
+            frame_count += len(frames)
+    
+        # Verify we processed all frames
+        cap = cv2.VideoCapture(str(sample_video))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+        assert frame_count == total_frames
+
+
+
+def test_error_handling(predictor):
+    """Test error cases"""
+    with pytest.raises(ValueError):
+        # Test invalid input type
+        predictor.predict("nonexistent.xyz")
+    
+    with pytest.raises(ValueError):
+        # Test stream=True with image input
+        predictor.predict("image.jpg", stream=True)
+

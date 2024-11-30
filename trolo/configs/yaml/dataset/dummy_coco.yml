@@ -6,14 +6,16 @@ evaluator:
 
 # Use minimal number of classes for testing
 num_classes: 80
-remap_mscoco_category: True
+remap_mscoco_category: False
+auto_download: true
+download_script: "dummy_coco.sh"
 
 train_dataloader:
   type: DataLoader
   dataset:
     type: CocoDetection
-    img_folder: ./data/dummy_coco/train2017
-    ann_file: ./data/dummy_coco/annotations/instances_train2017.json
+    img_folder: ./data/dummy_coco/train
+    ann_file: ./data/dummy_coco/train/_annotations.coco.json
     return_masks: False
     transforms:
       type: Compose
@@ -23,14 +25,14 @@ train_dataloader:
   drop_last: False
   collate_fn:
     type: BatchImageCollateFunction
-  total_batch_size: 2  # Small batch size for testing
+  total_batch_size: 8  # Small batch size for testing
 
 val_dataloader:
   type: DataLoader
   dataset:
     type: CocoDetection
-    img_folder: ./data/dummy_coco/val2017
-    ann_file: ./data/dummy_coco/annotations/instances_val2017.json
+    img_folder: ./data/dummy_coco/valid
+    ann_file: ./data/dummy_coco/valid/_annotations.coco.json
     return_masks: False
     transforms:
       type: Compose
@@ -40,19 +42,8 @@ val_dataloader:
   drop_last: False
   collate_fn:
     type: BatchImageCollateFunction
-  total_batch_size: 1  # Small batch size for testing
+  total_batch_size: 16  # Small batch size for testing
 
-# Categories for the dummy dataset
-categories:
-  - id: 1
-    name: "person"
-    supercategory: "person"
-  - id: 2
-    name: "car" 
-    supercategory: "vehicle"
-  - id: 3
-    name: "dog"
-    supercategory: "animal" 
 
 class_names: [
   "person",

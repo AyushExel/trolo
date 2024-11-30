@@ -54,19 +54,12 @@ def predict(model, input, output, device, conf_thresh, save, no_show):
     )
     
     # Infer paths and parameters with smart defaults
-    input_path = Path(infer_input_path(input))
     output_path = Path(infer_output_path(output)) if output else None
     conf_thresh = conf_thresh or 0.5
     
-    # Handle input path - could be single image or directory
-    if input_path.is_file():
-        images = [input_path]
-    else:
-        images = list(input_path.glob("*.jpg")) + list(input_path.glob("*.png"))
-    
     # Run visualization
     predictor.visualize(
-        input=images,
+        input=input,
         show=not no_show,  # Show by default unless --no-show is used
         save=save,
         save_dir=output_path,

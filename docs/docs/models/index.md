@@ -2,17 +2,34 @@
 sidebar_position: 2
 ---
 
-# Available Models
+## Available Models
 
-Below is a comprehensive list of models available in our framework:
+<details open>
+<summary><b>D-FINE</b></summary>
 
-| Model Name | Status | Description | Paper |
-|------------|--------|-------------|--------|
-| D-fine | Available | State-of-the-art object detection model | [Paper](link-to-paper) |
-| RT-DETRv2 | Coming Soon | Real-time detection transformer v2 | - |
-| RT-DETRv3 | Coming Soon | Real-time detection transformer v3 | - |
-| TROLO-2024-M | Coming Soon | Advanced tracking and localization model | - |
+The D-FINE model redefines regression tasks in DETR-based detectors using Fine-grained Distribution Refinement (FDR).
+[Official Paper](https://arxiv.org/abs/2410.13842) | [Official Repo](https://github.com/Peterande/D-FINE)
+![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
 
-For detailed information about each model, click on their respective documentation pages:
+( All models will be automatically downloaded when you pass the name for any task)
+| Model | Dataset | AP<sup>val</sup> | #Params | Latency | GFLOPs |
+| :---: | :---: | :---: |  :---: | :---: | :---: |
+`dfine-n` | COCO | **42.8** | 4M | 2.12ms | 7
+`dfine-s` | COCO | **48.5** | 10M | 3.49ms | 25
+`dfine-m` | COCO | **52.3** | 19M | 5.62ms | 57
+`dfine-l` | COCO | **54.0** | 31M | 8.07ms | 91
+`dfine-x` | COCO | **55.8** | 62M | 12.89ms | 202
 
-- [D-fine](./d-fine.md)
+</details>
+
+<details>
+<summary><b>RT-DETR v3 (Coming Soon)</b></summary>
+</details>
+
+<details>
+<summary><b>RT-DETR v2 (Coming Soon)</b></summary>
+</details>
+
+<details>
+<summary><b>Trolo-2024 (WIP)</b></summary>
+</details>

@@ -76,13 +76,13 @@ class BaseTrainer(object):
             **kwargs: Additional config overrides
         """
         # Set random seeds at the very beginning
-        torch.manual_seed(0)
-        torch.cuda.manual_seed(0)
-        torch.cuda.manual_seed_all(0)  # for multi-GPU
-        np.random.seed(0)
-        random.seed(0)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        # torch.manual_seed(0)
+        # torch.cuda.manual_seed(0)
+        # torch.cuda.manual_seed_all(0)  # for multi-GPU
+        # np.random.seed(0)
+        # random.seed(0)
+        # torch.backends.cudnn.deterministic = True
+        # torch.backends.cudnn.benchmark = False
         
         # Set critical overrides
         overrides = transform_overrides(overrides)

@@ -36,6 +36,7 @@ HybridEncoder:
 
 
 RTDETRTransformerv2:
+  backbone_channels: [512, 1024]
   feat_channels: [256, 256]
   feat_strides: [16, 32]
   hidden_dim: 256
