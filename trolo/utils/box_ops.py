@@ -8,7 +8,6 @@ import supervision as sv
 
 def to_sv(results: Dict) -> sv.Detections:
     detections = sv.Detections.empty()
-    print(results)
     if "boxes" in results:
         boxes_xcycwh = results["boxes"].numpy()
         # Convert from [cx, cy, w, h] to [x0, y0, x1, y1]
@@ -16,7 +15,6 @@ def to_sv(results: Dict) -> sv.Detections:
         scores = results["scores"].numpy()
         labels = results["labels"].numpy()
         detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
-    print(detections)
     return detections
 
 

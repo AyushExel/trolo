@@ -200,8 +200,6 @@ class BasePredictor(ABC):
                 class_names = np.asarray(class_names)
                 detections.data = {"class_name": class_names}
 
-                print(detections['class_name'])
-
                 labels = [
                     f"{detections['class_name'][class_id]} - {confidence:.2f}"
                     for class_id, confidence
