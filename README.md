@@ -137,13 +137,14 @@ Visit Training Docs for more details
 
 TLDR: This is a non-profit project.Use it, modify it, copy it, do whatever you want with it. And if something doesn't allow you to do that, please open an issue.
 
-<details>
+<details open>
 <summary>More details</summary>
-- Apache 2.0
-- The license has simply been copied from official apache repo. Please open an issue if something doesn't allow you to use it. 
-- This project is built on top of open licensed projects as mentioned below.
 
-I intend to keep this project free and open source FOREVER. There are no plans for direct/indirect monetization of this project. I only accept sponsorships for compute resources to train models and perform independent research.
+* Apache 2.0
+
+* The license has simply been copied from official apache repo. Please open an issue if something doesn't allow you to use it. 
+* This project is built on top of open licensed projects as mentioned below.
+* I intend to keep this project free and open source FOREVER. There are no plans for direct/indirect monetization of this project. I only accept sponsorships for compute resources to train models and perform independent research.
 </details>
 
 ## Credits
