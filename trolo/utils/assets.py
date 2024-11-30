@@ -69,7 +69,7 @@ def download_model(model_name: str, output_dir: str = ".") -> Optional[str]:
                     f.write(chunk)
                     
             print(f"Successfully downloaded model to {local_path}")
-            return str(local_path)
+            return local_path
             
         except Exception as e:
             print(f"Failed to download {name}: {e}")
