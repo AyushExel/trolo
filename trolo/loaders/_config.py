@@ -9,7 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from typing import Callable, List, Dict
 
-from ..utils.logger import logger
+from ..utils.logging  import LOGGER
 
 
 __all__ = [
