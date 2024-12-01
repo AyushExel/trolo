@@ -322,12 +322,4 @@ def configure_logger(name="default_logger", verbose=True, rank=0):
     return logger
 
 # Lazy initialization
-LOGGER = None
-
-def get_logger():
-    global LOGGER
-    if LOGGER is None:
-        LOGGER = add_separator_method(configure_logger())
-    return LOGGER
-
-LOGGER = get_logger()
+logger =  add_separator_method(configure_logger())

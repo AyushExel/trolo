@@ -3,7 +3,7 @@ import requests
 from pathlib import Path
 from typing import Optional
 
-from .logger import LOGGER
+from .logger import logger
 
 RELEASE_ASSETS_VER = "0.1.1"
 
@@ -53,13 +53,13 @@ def download_model(model_name: str, output_dir: str = ".") -> Optional[str]:
         # Check if file already exists locally
         local_path = Path(output_dir) / name
         if local_path.exists():
-            LOGGER.info(f"Model already exists at {local_path}")
+            logger.info(f"Model already exists at {local_path}")
             return str(local_path)
 
         # Try downloading from GitHub releases
         try:
             url = f"{base_url}/{name}"
-            LOGGER.info(f"Downloading model from {url}")
+            logger.info(f"Downloading model from {url}")
             response = requests.get(url, stream=True)
             response.raise_for_status()
 
@@ -68,13 +68,13 @@ def download_model(model_name: str, output_dir: str = ".") -> Optional[str]:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
 
-            LOGGER.info(f"Successfully downloaded model to {local_path}")
+            logger.info(f"Successfully downloaded model to {local_path}")
             return local_path
 
         except Exception as e:
-            LOGGER.error(f"Failed to download {name}: {e}")
+            logger.error(f"Failed to download {name}: {e}")
             continue
 
     # If we get here, all download attempts failed
-    LOGGER.critical(f"Failed to download model {model_name}. " f"Tried variants: {', '.join(name_variants)}")
+    logger.critical(f"Failed to download model {model_name}. " f"Tried variants: {', '.join(name_variants)}")
     return None

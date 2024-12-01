@@ -9,7 +9,7 @@ from torch.cuda.amp.grad_scaler import GradScaler
 
 from ..modules.optim import ModelEMA, Warmup
 from ..data import CocoEvaluator
-from ..utils import MetricLogger, SmoothedValue, dist_utils, LOGGER
+from ..utils import MetricLogger, SmoothedValue, dist_utils, logger
 
 
 def train_one_epoch(
@@ -46,7 +46,7 @@ def train_one_epoch(
                 outputs = model(samples, targets=targets)
 
             if torch.isnan(outputs["pred_boxes"]).any() or torch.isinf(outputs["pred_boxes"]).any():
-                LOGGER.info(f"{outputs['pred_boxes']}")
+                logger.info(f"{outputs['pred_boxes']}")
                 state = model.state_dict()
                 new_state = {}
                 for key, value in model.state_dict().items():
@@ -95,8 +95,8 @@ def train_one_epoch(
         loss_value = sum(loss_dict_reduced.values())
 
         if not math.isfinite(loss_value):
-            LOGGER.info(F"Loss is {loss_value}, stopping training")
-            LOGGER.info(f"{loss_dict_reduced}")
+            logger.info(F"Loss is {loss_value}, stopping training")
+            logger.info(f"{loss_dict_reduced}")
             sys.exit(1)
 
         metric_logger.update(loss=loss_value, **loss_dict_reduced)
@@ -111,7 +111,7 @@ def train_one_epoch(
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    LOGGER.info(f"Averaged stats: {metric_logger}")
+    logger.info(f"Averaged stats: {metric_logger}")
     return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
 
 
@@ -161,7 +161,7 @@ def evaluate(
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    LOGGER.info(f"Averaged stats: {metric_logger}")
+    logger.info(f"Averaged stats: {metric_logger}")
     if coco_evaluator is not None:
         coco_evaluator.synchronize_between_processes()
 
