@@ -43,7 +43,7 @@ class DetectionPredictor(BasePredictor):
                 LOGGER.info("Loading config from checkpoint")
                 self.config = YAMLConfig.from_state_dict(checkpoint["cfg"])
             else:
-                LOGGER.info("Config not found in checkpoint, inferring from model name")
+                LOGGER.warning("Config not found in checkpoint, inferring from model name")
                 config = infer_model_config_path(model)
                 self.config = self.load_config(config)
         else:

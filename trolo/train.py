@@ -109,7 +109,7 @@ def train_model(
         if "HGNetv2" in cfg.yaml_cfg:
             cfg.yaml_cfg["HGNetv2"]["pretrained"] = False
 
-    LOGGER.info(f"cfg: {cfg.__dict__}")
+    # LOGGER.info(f"cfg: {cfg.__dict__}") # uncomment for debugging purpose.
 
     solver = TASKS[cfg.yaml_cfg["task"]](cfg)
 
