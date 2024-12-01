@@ -286,15 +286,12 @@ class BaseTrainer(object):
             raise TypeError(f"Unsupported dataset type: {type(dataset)}")
 
         # Print configs before merge for debugging
-        LOGGER.info("Model config transforms:", model_config.get("train_dataloader", {}).get("dataset", {}).get("transforms"))
-        LOGGER.info(
-            "Dataset config transforms:",
-            dataset_config.get("train_dataloader", {}).get("dataset", {}).get("transforms"),
-        )
+        LOGGER.info(f"Model config transforms: {model_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}")
+        LOGGER.info(f"Dataset config transforms: {dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}")
 
         # Merge configs
         cfg = YAMLConfig.merge_configs(model_config, dataset_config, **overrides)
-        LOGGER.info("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
+        LOGGER.info(f"Merged config transforms: { cfg.train_dataloader.dataset.transforms} ")
 
         return cfg
 
@@ -329,7 +326,7 @@ class BaseTrainer(object):
 
         if missing_paths:
             if not hasattr(self.cfg, "auto_download") or self.cfg.auto_download:
-                LOGGER.info(f"Dataset paths not found: {missing_paths}")
+                LOGGER.warning(f"Dataset paths not found: {missing_paths}")
                 if hasattr(self.cfg, "yaml_cfg") and "download_script" in self.cfg.yaml_cfg:
                     # Try to resolve script path
                     script_path = Path(self.cfg.yaml_cfg["download_script"])

@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 from typing import Dict
 from colorama import init, Fore, Style
 import emoji
+import sys
 
 import torch
 import torch.distributed as tdist
@@ -231,7 +232,7 @@ class MetricLogger(object):
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print("{} Total time: {} ({:.4f} s / it)".format(header, total_time_str, total_time / len(iterable)))
 
-# Adding global logging support
+
 def platform_safe_emojis(emoji_str=""):
     """Return emoji-safe version of the string."""
     return emoji.emojize(emoji_str, language='alias')
@@ -248,6 +249,13 @@ class ColorLogger(logging.Formatter):
         "CRITICAL": Fore.MAGENTA,
     }
 
+    EMOJIS = {
+        "DEBUG": "🐛",
+        "INFO": "🛈",  # Info symbol
+        "WARNING": "⚠️",
+        "ERROR": "❌",
+        "CRITICAL": "🔥",
+    }
     def format(self, record):
         levelname = record.levelname
         message = super().format(record)
@@ -289,11 +297,15 @@ def add_separator_method(logger):
     logger.separator = separator
     return logger
 
-def configure_logger(name="LOGGING_NAME", verbose=True):
+def configure_logger(name="default_logger", verbose=True, rank=0):
     """
     Configure logger with color and emoji formatting and customizable verbosity.
+    
+    :param name: Name of the logger
+    :param verbose: Whether to set logging level to INFO
+    :param rank: Rank of the process (to control logging)
     """
-    level = logging.INFO if verbose and RANK in {-1, 0} else logging.ERROR
+    level = logging.INFO if verbose and rank in {-1, 0} else logging.ERROR
     formatter = ColorLogger("%(message)s")
 
     # StreamHandler setup
@@ -309,5 +321,5 @@ def configure_logger(name="LOGGING_NAME", verbose=True):
 
     return logger
 
-# Set the global logger
-LOGGER = configure_logger(LOGGING_NAME, verbose=VERBOSE)
+# Example usage
+LOGGER = configure_logger()

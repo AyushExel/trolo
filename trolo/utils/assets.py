@@ -3,7 +3,7 @@ import requests
 from pathlib import Path
 from typing import Optional
 
-from .utils import LOGGER
+from .logger import LOGGER
 
 RELEASE_ASSETS_VER = "0.1.1"
 

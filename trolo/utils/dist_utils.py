@@ -17,8 +17,6 @@ from torch.utils.data import DistributedSampler
 
 # from torch.utils.data.dataloader import DataLoader
 from ..data import DataLoader
-from .utils import LOGGER
-
 
 def setup_distributed(
     print_rank: int = 0,
@@ -51,7 +49,7 @@ def setup_distributed(
 
     except Exception:
         enabled_dist = False
-        LOGGER.error("Not init distributed mode.")
+        LOGGER.warning("Not init distributed mode.")
 
     setup_print(get_rank() == print_rank, method=print_method)
     if seed is not None:

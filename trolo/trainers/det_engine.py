@@ -46,7 +46,7 @@ def train_one_epoch(
                 outputs = model(samples, targets=targets)
 
             if torch.isnan(outputs["pred_boxes"]).any() or torch.isinf(outputs["pred_boxes"]).any():
-                LOGGER.info(f"{outputs["pred_boxes"]}")
+                LOGGER.info(f"{outputs['pred_boxes']}")
                 state = model.state_dict()
                 new_state = {}
                 for key, value in model.state_dict().items():

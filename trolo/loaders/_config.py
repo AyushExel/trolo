@@ -228,7 +228,7 @@ class BaseConfig(object):
     @property
     def train_batch_size(self) -> int:
         if self._train_batch_size is None and isinstance(self.batch_size, int):
-            logger.warning(f"Set train_batch_size=batch_size={self.batch_size}")
+            LOGGER.warning(f"Set train_batch_size={self.batch_size}")
             return self.batch_size
         return self._train_batch_size
 
@@ -240,7 +240,7 @@ class BaseConfig(object):
     @property
     def val_batch_size(self) -> int:
         if self._val_batch_size is None:
-            LOGGER.warning(f"set val_batch_size=batch_size={self.batch_size}")
+            LOGGER.warning(f"set val_batch_size={self.batch_size}")
             return self.batch_size
         return self._val_batch_size
 

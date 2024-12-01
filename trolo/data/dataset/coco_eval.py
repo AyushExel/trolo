@@ -9,7 +9,6 @@ from faster_coco_eval import COCO, COCOeval_faster
 import faster_coco_eval.core.mask as mask_util
 from trolo.loaders.registry import register
 from trolo.utils import dist_utils
-from trolo.utils.logger import LOGGER
 
 __all__ = ['CocoEvaluator',]
 
