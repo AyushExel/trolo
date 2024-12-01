@@ -1,11 +1,8 @@
 import pytest
 from pathlib import Path
-import torch
 
 from trolo.utils.dummy_data import create_dummy_coco_dataset
 from trolo.trainers.detection import DetectionTrainer
-from trolo.loaders import YAMLConfig
-from trolo.loaders.maps import get_dataset_config_path
 
 
 @pytest.fixture(scope="session")
