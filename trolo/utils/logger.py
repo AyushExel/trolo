@@ -11,8 +11,15 @@ import sys
 import torch
 import torch.distributed as tdist
 
-from .dist_utils import is_dist_available_and_initialized, get_world_size
+from .dist_utils import is_dist_available_and_initialized
 
+# Defer importing dist_utils to avoid circular imports
+def _get_world_size():
+    try:
+        from .dist_utils import get_world_size
+        return get_world_size()
+    except ImportError:
+        return 0
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
