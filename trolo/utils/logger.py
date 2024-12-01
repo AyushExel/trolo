@@ -322,4 +322,4 @@ def configure_logger(name="default_logger", verbose=True, rank=0):
     return logger
 
 # Example usage
-LOGGER = configure_logger()
+LOGGER =  add_separator_method(configure_logger())

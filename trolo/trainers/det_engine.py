@@ -161,7 +161,7 @@ def evaluate(
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    LOGGER.Info(f"Averaged stats: {metric_logger}")
+    LOGGER.info(f"Averaged stats: {metric_logger}")
     if coco_evaluator is not None:
         coco_evaluator.synchronize_between_processes()
 

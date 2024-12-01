@@ -17,9 +17,9 @@ def test_platform_safe_emojis():
 
 def test_logger_separator(test_logger, capsys):
     """Test the logger's separator method."""
-    test_logger.separator("Test Line")
+    test_logger.separator("Test")
     captured = capsys.readouterr().out
-    assert "Test Line" in captured
+    assert "Test" in captured
     assert "-" in captured
 
 
@@ -27,4 +27,4 @@ def test_logger_configuration():
     """Test that the logger is configured correctly."""
     logger = configure_logger(name="dummy_logger", verbose=True)
     assert logger.name == "dummy_logger"
-    assert logger.level == pytest.logging.INFO
+    assert logger.level == logging.INFO
