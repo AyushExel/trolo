@@ -140,47 +140,47 @@ Visit Training Docs for more details
 ### Build Commands
 ```bash
 # Standard build
-docker build -t trolo-app .
+docker build -t trolo .
 
 # Build with a specific tag
-docker build -t trolo-app:v1 .
+docker build -t trolo:v1 .
 
 # Build with build arguments (if needed)
-docker build --build-arg SOME_ARG=value -t trolo-app .
+docker build --build-arg SOME_ARG=value -t trolo .
 ```
 
 ### Run Commands
 
 #### 1. Basic Run (No GPU, No Volume)
 ```bash
-docker run -it --name containaer_name  trolo-app
+docker run -it --name containaer_name  trolo
 ```
 
 #### 2. Run with GPU Mounting
 ```bash
-docker run -it --gpus  --name containaer_name  all trolo-app
+docker run -it --gpus  --name containaer_name  all trolo
 ```
 
 #### 3. Run with Volume Mounting
 ```bash
-docker run -it -v /local/path/on/host:/workspace/app/trolo --name containaer_name trolo-app
+docker run -it -v /local/path/on/host:/workspace/app/trolo --name containaer_name trolo
 ```
 
 #### 4. Comprehensive Run (GPU and Volume)
 ```bash
-docker run -it --gpus all -v /local/path/on/host:/workspace/app/trolo --name containaer_name  trolo-app
+docker run -it --gpus all -v /local/path/on/host:/workspace/app/trolo --name containaer_name  trolo
 ```
 
 #### 5. Additional Run Options
 ```bash
 # Run with custom entrypoint
-docker run -it --entrypoint /bin/bash trolo-app
+docker run -it --entrypoint /bin/bash trolo
 
 # Run with environment variables
-docker run -it -e CUSTOM_ENV=value trolo-app
+docker run -it -e CUSTOM_ENV=value trolo
 
 # Run in detached mode
-docker run -d trolo-app
+docker run -d trolo
 ```
 
 #### Notes:
