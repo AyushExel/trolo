@@ -23,7 +23,9 @@ dependencies = [
     "scipy",
     "wandb",
     "numpy<=1.26.4",
-    "supervision"
+    "supervision",
+    "emoji",
+    "colorama"
 ]
 
 [project.optional-dependencies]

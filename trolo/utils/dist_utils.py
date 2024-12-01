@@ -18,7 +18,6 @@ from torch.utils.data import DistributedSampler
 # from torch.utils.data.dataloader import DataLoader
 from ..data import DataLoader
 
-
 def setup_distributed(
     print_rank: int = 0,
     print_method: str = "builtin",
@@ -46,11 +45,11 @@ def setup_distributed(
         torch.cuda.empty_cache()
         enabled_dist = True
         if get_rank() == print_rank:
-            print("Initialized distributed mode...")
+            logger.info("Initialized distributed mode...")
 
     except Exception:
         enabled_dist = False
-        print("Not init distributed mode.")
+        logger.warning("Not init distributed mode.")
 
     setup_print(get_rank() == print_rank, method=print_method)
     if seed is not None:
@@ -136,7 +135,7 @@ def warp_model(
         if sync_bn and using_gpu:
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         else:
-            print("Warning: SyncBatchNorm is not applied because GPU is not available.")
+            logger.warning("SyncBatchNorm is not applied because GPU is not available.")
 
         if dist_mode == "dp":
             if using_gpu:

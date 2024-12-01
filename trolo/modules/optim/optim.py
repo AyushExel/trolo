@@ -6,7 +6,6 @@ from trolo.loaders import register
 
 __all__ = ["AdamW", "SGD", "Adam", "MultiStepLR", "CosineAnnealingLR", "OneCycleLR", "LambdaLR"]
 
-
 SGD = register()(optim.SGD)
 Adam = register()(optim.Adam)
 AdamW = register()(optim.AdamW)

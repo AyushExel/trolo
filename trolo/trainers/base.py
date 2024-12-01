@@ -12,13 +12,14 @@ import os
 import sys
 import subprocess
 
-from ..utils import dist_utils
+from ..utils import dist_utils, logger
 from ..loaders import YAMLConfig
 from ..loaders.maps import get_dataset_config_path, get_model_config_path
 from ..loaders.yaml_config import load_config, merge_dict
 from ..utils.smart_defaults import infer_pretrained_model
 from ..utils.logging.wandb import WandbLogger, wandb
 from ..utils.logging.metrics_logger import ExperimentLogger
+from ..utils.logging import LOGGER
 
 
 def transform_overrides(overrides):
@@ -192,10 +193,10 @@ class BaseTrainer(object):
         ]
 
         if config is not None and self.cfg_path is None:
-            print("WARNING:cfg_path is None while config is provided. This should never happen.")
+            LOGGER.warning("cfg_path is None while config is provided. This should never happen.")
 
         ## Debugging
-        print(self.cfg)
+        LOGGER.info(self.cfg)
 
     def _init_loggers(self):
         loggers = self.forward_loggers
@@ -214,7 +215,7 @@ class BaseTrainer(object):
             try:
                 loggers.append(WandbLogger(project="trolo", name=experiment_name, config=self.cfg.__dict__))
             except Exception as e:
-                print(f"Wandb is not installed. Please install it with `pip install wandb`.")
+                LOGGER.error(f"Wandb is not installed. Please install it with `pip install wandb`.")
             self.loggers = loggers
             assert all(
                 isinstance(logger, ExperimentLogger) for logger in self.loggers
@@ -258,43 +259,40 @@ class BaseTrainer(object):
         # Load model config
         if isinstance(model, str) and not model.endswith(".yml"):
             model_cfg = get_model_config_path(model)
-            print(f"Loading model config from: {model_cfg}")
+            LOGGER.info(f"Loading model config from: {model_cfg}")
             model_config = load_config(model_cfg)
         elif isinstance(model, (str, Path)):
             model_cfg = model
-            print(f"Using provided model config path: {model_cfg}")
+            LOGGER.info(f"Using provided model config path: {model_cfg}")
             model_config = load_config(model_cfg)
         elif isinstance(model, dict):
             model_config = model
-            print("Using provided model config dict")
+            LOGGER.info("Using provided model config dict")
         else:
             raise TypeError(f"Unsupported model type: {type(model)}")
 
         # Load dataset config
         if isinstance(dataset, str) and not dataset.endswith(".yml"):
             dataset_cfg = get_dataset_config_path(dataset)
-            print(f"Loading dataset config from: {dataset_cfg}")
+            LOGGER.info(f"Loading dataset config from: {dataset_cfg}")
             dataset_config = load_config(dataset_cfg)
         elif isinstance(dataset, (str, Path)):
             dataset_cfg = dataset
-            print(f"Using provided dataset config path: {dataset_cfg}")
+            LOGGER.info(f"Using provided dataset config path: {dataset_cfg}")
             dataset_config = load_config(dataset_cfg)
         elif isinstance(dataset, dict):
             dataset_config = dataset
-            print("Using provided dataset config dict")
+            LOGGER.info("Using provided dataset config dict")
         else:
             raise TypeError(f"Unsupported dataset type: {type(dataset)}")
 
         # Print configs before merge for debugging
-        print("Model config transforms:", model_config.get("train_dataloader", {}).get("dataset", {}).get("transforms"))
-        print(
-            "Dataset config transforms:",
-            dataset_config.get("train_dataloader", {}).get("dataset", {}).get("transforms"),
-        )
+        LOGGER.info(f"Model config transforms: {model_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}")
+        LOGGER.info(f"Dataset config transforms: {dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}")
 
         # Merge configs
         cfg = YAMLConfig.merge_configs(model_config, dataset_config, **overrides)
-        print("Merged config transforms:", cfg.train_dataloader.dataset.transforms)
+        LOGGER.info(f"Merged config transforms: { cfg.train_dataloader.dataset.transforms} ")
 
         return cfg
 
@@ -329,7 +327,7 @@ class BaseTrainer(object):
 
         if missing_paths:
             if not hasattr(self.cfg, "auto_download") or self.cfg.auto_download:
-                print(f"Dataset paths not found: {missing_paths}")
+                LOGGER.warning(f"Dataset paths not found: {missing_paths}")
                 if hasattr(self.cfg, "yaml_cfg") and "download_script" in self.cfg.yaml_cfg:
                     # Try to resolve script path
                     script_path = Path(self.cfg.yaml_cfg["download_script"])
@@ -346,7 +344,7 @@ class BaseTrainer(object):
                                 f"or in package location {pkg_script_path}"
                             )
 
-                    print(f"Running download script: {script_path}")
+                    LOGGER.info(f"Running download script: {script_path}")
                     try:
                         import subprocess
                         import stat
@@ -371,7 +369,7 @@ class BaseTrainer(object):
                         if still_missing:
                             raise RuntimeError(f"Download script completed but paths still missing: {still_missing}")
 
-                        print("Dataset download completed successfully")
+                        LOGGER.info("Dataset download completed successfully ✅ ")
                     except subprocess.CalledProcessError as e:
                         raise RuntimeError(f"Dataset download failed: {e}")
                     except Exception as e:
@@ -400,7 +398,7 @@ class BaseTrainer(object):
 
         # NOTE: Must load_tuning_state before EMA instance building
         if self.cfg.tuning:
-            print(f"Tuning checkpoint from {self.cfg.tuning}")
+            LOGGER.info(f"Tuning checkpoint from {self.cfg.tuning}")
             self.load_tuning_state(self.cfg.tuning)
 
         self.model = dist_utils.warp_model(
@@ -447,27 +445,27 @@ class BaseTrainer(object):
 
         if devices == ["cpu"]:
             # CPU training
-            print("Training on CPU")
+            LOGGER.info("Training on CPU")
             self._setup()
             self._prepare_training()
 
         elif len(devices) == 1 and not is_distributed:
             # Single GPU training
-            print(f"Training on single GPU: {devices[0]}")
+            LOGGER.info(f"Training on single GPU: {devices[0]}")
             os.environ["CUDA_VISIBLE_DEVICES"] = str(devices[0])
             self._setup()
             self._prepare_training()
 
         elif len(devices) > 1 and not is_distributed:
             # Launch DDP training only if we're not already in a distributed environment
-            print(f"Launching DDP training on GPUs: {devices}")
+            LOGGER.info(f"Launching DDP training on GPUs: {devices}")
             device_str = ",".join(map(str, devices))
             self.execute_ddp(device_str)
             return  # Return after DDP launch as the parent process doesn't need to continue
 
         else:
             # We're already in a distributed environment, proceed with normal setup
-            print(f"Setting up DDP worker process")
+            LOGGER.info(f"Setting up DDP worker process")
             self._setup()
             self._prepare_training()
 
@@ -484,11 +482,11 @@ class BaseTrainer(object):
         self.evaluator = self.cfg.evaluator
 
         if self.cfg.resume:
-            print(f"Resume checkpoint from {self.cfg.resume}")
+            LOGGER.info(f"Resume checkpoint from {self.cfg.resume}")
             self.load_resume_state(self.cfg.resume)
 
     def execute_ddp(self, device: str):
-        print(f"Not implemented")
+        LOGGER.critical(f"Not implemented")
 
     def eval(self):
         self._setup()
@@ -498,7 +496,7 @@ class BaseTrainer(object):
         self.evaluator = self.cfg.evaluator
 
         if self.cfg.resume:
-            print(f"Resume checkpoint from {self.cfg.resume}")
+            LOGGER.info(f"Resume checkpoint from {self.cfg.resume}")
             self.load_resume_state(self.cfg.resume)
 
     def to(self, module, device):
@@ -523,13 +521,13 @@ class BaseTrainer(object):
         """Load state dict, train/eval"""
         if "last_epoch" in state:
             self.last_epoch = state["last_epoch"]
-            print("Load last_epoch")
+            LOGGER.info("Load last_epoch")
 
         for k, v in self.__dict__.items():
             if hasattr(v, "load_state_dict") and k in state:
                 v = dist_utils.de_parallel(v)
                 v.load_state_dict(state[k])
-                print(f"Load {k}.state_dict")
+                LOGGER.info(f"Load {k}.state_dict")
 
             if hasattr(v, "load_state_dict") and k not in state:
                 if k == "ema":
@@ -538,9 +536,9 @@ class BaseTrainer(object):
                         ema = dist_utils.de_parallel(v)
                         model_state_dict = remove_module_prefix(model.state_dict())
                         ema.load_state_dict({"module": model_state_dict})
-                        print(f"Load {k}.state_dict from model.state_dict")
+                        LOGGER.info(f"Load {k}.state_dict from model.state_dict")
                 else:
-                    print(f"Not load {k}.state_dict")
+                    LOGGER.info(f"Not load {k}.state_dict")
 
     def load_resume_state(self, path: str):
         """Load resume"""
@@ -575,7 +573,7 @@ class BaseTrainer(object):
             stat, infos = self._matched_state(module.state_dict(), pretrain_state_dict)
 
         module.load_state_dict(stat, strict=False)
-        print(f"Load model.state_dict, {infos}")
+        LOGGER.info(f"Load model.state_dict, {infos}")
 
     @staticmethod
     def _matched_state(state: Dict[str, torch.Tensor], params: Dict[str, torch.Tensor]):
@@ -618,7 +616,7 @@ class BaseTrainer(object):
                     pretrain_state_dict[param_name] = adjusted_tensor
                     adjusted_params.append(param_name)
                 else:
-                    print(f"Cannot adjust parameter '{param_name}' due to size mismatch.")
+                    LOGGER.info(f"Cannot adjust parameter '{param_name}' due to size mismatch.")
 
         return pretrain_state_dict
 
