@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from pycocotools.coco import COCO
 from trolo.utils.dummy_data import create_dummy_coco_dataset
 
