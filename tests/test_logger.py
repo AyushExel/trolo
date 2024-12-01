@@ -1,4 +1,5 @@
 import pytest
+import logging
 from trolo.utils.logger import platform_safe_emojis, configure_logger, add_separator_method
 
 @pytest.fixture
@@ -19,7 +20,7 @@ def test_logger_separator(test_logger, capsys):
     """Test the logger's separator method."""
     test_logger.separator("Test")
     captured = capsys.readouterr().out
-    assert "Test" in captured
+    assert "Test Line" in captured
     assert "-" in captured
 
 
