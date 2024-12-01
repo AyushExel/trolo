@@ -11,15 +11,8 @@ import sys
 import torch
 import torch.distributed as tdist
 
-from .dist_utils import is_dist_available_and_initialized
+from .dist_utils import is_dist_available_and_initialized, get_world_size
 
-# Defer importing dist_utils to avoid circular imports
-def _get_world_size():
-    try:
-        from .dist_utils import get_world_size
-        return get_world_size()
-    except ImportError:
-        return 0
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -328,18 +321,13 @@ def configure_logger(name="default_logger", verbose=True, rank=0):
 
     return logger
 
-# Lazy initialization of LOGGER
-def _initialize_logger():
-    return configure_logger()
+# Lazy initialization
+LOGGER = None
 
-# Use a proxy to avoid circular imports
-class LoggerProxy:
-    _logger = None
+def get_logger():
+    global LOGGER
+    if LOGGER is None:
+        LOGGER = add_separator_method(configure_logger())
+    return LOGGER
 
-    def __getattr__(self, name):
-        if self._logger is None:
-            self._logger = _initialize_logger()
-        return getattr(self._logger, name)
-
-# Export the proxy logger
-LOGGER = LoggerProxy()
+LOGGER = get_logger()
