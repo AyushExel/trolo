@@ -1,0 +1,15 @@
+# Version Control Systems
+.git
+.gitignore
+.github
+.gitlab-ci.yml
+
+# Python Specific Ignores
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.log
+.env
+.venv

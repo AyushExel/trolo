@@ -132,6 +132,63 @@ trainer.train() # pass device = 0,1,2,3 to automatically handle DDP
 
 Visit Training Docs for more details
 
+## Docker 🐳 Usage Guide
+
+<details>
+<summary>   Build and Run Options </summary>
+
+### Build Commands
+```bash
+# Standard build
+docker build -t trolo .
+
+# Build with a specific tag
+docker build -t trolo:v1 .
+
+# Build with build arguments (if needed)
+docker build --build-arg SOME_ARG=value -t trolo .
+```
+
+### Run Commands
+
+#### 1. Basic Run (No GPU, No Volume)
+```bash
+docker run -it --name containaer_name  trolo
+```
+
+#### 2. Run with GPU Mounting
+```bash
+docker run -it --gpus  --name containaer_name  all trolo
+```
+
+#### 3. Run with Volume Mounting
+```bash
+docker run -it -v /local/path/on/host:/workspace/app/trolo --name containaer_name trolo
+```
+
+#### 4. Comprehensive Run (GPU and Volume)
+```bash
+docker run -it --gpus all -v /local/path/on/host:/workspace/app/trolo --name containaer_name  trolo
+```
+
+#### 5. Additional Run Options
+```bash
+# Run with custom entrypoint
+docker run -it --entrypoint /bin/bash trolo
+
+# Run with environment variables
+docker run -it -e CUSTOM_ENV=value trolo
+
+# Run in detached mode
+docker run -d trolo
+```
+
+#### Notes:
+- Replace `/local/path/on/host` with your actual host path
+- `--gpus all` requires NVIDIA Container Toolkit
+- Volume mounting allows persistent data and code modifications
+</details>
+
 
 ## Totally open source and free
 
