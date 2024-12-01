@@ -1,12 +1,10 @@
 import pytest
-from pathlib import Path
 import torch
 from PIL import Image
 import numpy as np
 import cv2
 
 from trolo.inference.detection import DetectionPredictor
-from trolo.inference.video import VideoStream
 from trolo.utils.smart_defaults import infer_input_path, infer_pretrained_model
 
 DEFAULT_MODEL = "dfine_n.pth"
