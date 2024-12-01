@@ -8,7 +8,7 @@ import yaml
 import socket
 import torch
 
-from ..utils import dist_utils, stats
+from ..utils import dist_utils, stats, LOGGER
 
 from .base import BaseTrainer
 from .det_engine import train_one_epoch, evaluate
@@ -62,8 +62,8 @@ class DetectionTrainer(BaseTrainer):
         args = self.cfg
 
         n_parameters, model_stats = stats(self.cfg)
-        print(model_stats)
-        print("-" * 42 + "Start training" + "-" * 43)
+        LOGGER.info(f"{model_stats}")
+        LOGGER.separator("Start training")
         top1 = 0
         best_stat = {
             "epoch": -1,
@@ -77,7 +77,7 @@ class DetectionTrainer(BaseTrainer):
                 best_stat["epoch"] = self.last_epoch
                 best_stat[k] = test_stats[k][0]
                 top1 = test_stats[k][0]
-                print(f"best_stat: {best_stat}")
+                LOGGER.info(f"best_stat: {best_stat}")
 
         best_stat_print = best_stat.copy()
         start_time = time.time()
@@ -91,7 +91,7 @@ class DetectionTrainer(BaseTrainer):
             if epoch == self.train_dataloader.collate_fn.stop_epoch:
                 self.load_resume_state(str(self.output_dir / "best_stg1.pth"))
                 self.ema.decay = self.train_dataloader.collate_fn.ema_restart_decay
-                print(f"Refresh EMA at epoch {epoch} with decay {self.ema.decay}")
+                LOGGER.info(f"Refresh EMA at epoch {epoch} with decay {self.ema.decay}")
 
             train_stats = train_one_epoch(
                 self.model,
@@ -149,7 +149,7 @@ class DetectionTrainer(BaseTrainer):
                             dist_utils.save_on_master(self.state_dict(), self.output_dir / "best_stg1.pth")
 
                 best_stat_print[k] = max(best_stat[k], top1)
-                print(f"best_stat: {best_stat_print}")  # global best
+                LOGGER.info(f"best_stat: {best_stat_print}")  # global best
 
                 if best_stat["epoch"] == epoch and self.output_dir:
                     if epoch >= self.train_dataloader.collate_fn.stop_epoch:
@@ -166,7 +166,7 @@ class DetectionTrainer(BaseTrainer):
                     }
                     self.ema.decay -= 0.0001
                     self.load_resume_state(str(self.output_dir / "best_stg1.pth"))
-                    print(f"Refresh EMA at epoch {epoch} with decay {self.ema.decay}")
+                    LOGGER.info(f"Refresh EMA at epoch {epoch} with decay {self.ema.decay}")
 
             log_stats = {
                 **{f"train/{k}": v for k, v in train_stats.items()},
@@ -218,7 +218,7 @@ class DetectionTrainer(BaseTrainer):
 
         total_time = time.time() - start_time
         total_time_str = str(timedelta(seconds=int(total_time)))
-        print("Training time {}".format(total_time_str))
+        LOGGER.info("Training time {}".format(total_time_str))
 
     def val(self, device: str = None):
         self.eval()
@@ -309,11 +309,11 @@ if __name__ == "__main__":
         cmd = f"torchrun --nproc_per_node={num_gpus} --master_port {port} {tmp_file}"
 
         try:
-            print(f"Executing DDP command: {cmd}")
+            LOGGER.info(f"Executing DDP command: {cmd}")
             subprocess.run(cmd, env=env, shell=True, check=True)
         finally:
             # Cleanup temporary files
-            print("Cleaning up temporary files...")
+            LOGGER.warning("Cleaning up temporary files...")
             tmp_file.unlink(missing_ok=True)
             tmp_config.unlink(missing_ok=True)
             try:

@@ -11,6 +11,8 @@ from ._config import BaseConfig
 from .registry import create_from_config
 from .yaml_utils import load_config, merge_config, merge_dict
 
+from ..utils.logger import LOGGER
+
 
 class YAMLConfig(BaseConfig):
     def __init__(self, cfg_path: str, **kwargs) -> None:
@@ -90,7 +92,7 @@ class YAMLConfig(BaseConfig):
     ) -> optim.lr_scheduler.LRScheduler:
         if self._lr_scheduler is None and "lr_scheduler" in self.yaml_cfg:
             self._lr_scheduler = create_from_config("lr_scheduler", self.global_cfg, optimizer=self.optimizer)
-            print(f"Initial lr: {self._lr_scheduler.get_last_lr()}")
+            LOGGER.info(f"Initial lr: {self._lr_scheduler.get_last_lr()}")
         return super().lr_scheduler
 
     @property
@@ -213,7 +215,7 @@ class YAMLConfig(BaseConfig):
         if "total_batch_size" in global_cfg[name]:
             # pop unexpected key for dataloader init
             _ = global_cfg[name].pop("total_batch_size")
-        print(f"building {name} with batch_size={bs}...")
+        LOGGER.info(f"building {name} with batch_size={bs}...")
         loader = create_from_config(name, global_cfg, batch_size=bs)
         loader.shuffle = self.yaml_cfg[name].get("shuffle", False)
         return loader

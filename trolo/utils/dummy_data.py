@@ -172,4 +172,4 @@ def create_dummy_coco_dataset(root_dir="./data/dummy_coco", num_images=5, num_ob
 
 if __name__ == "__main__":
     dataset_path = create_dummy_coco_dataset()
-    print(f"Created dummy COCO dataset at {dataset_path}")
+    LOGGER.info(f"Created dummy COCO dataset at {dataset_path}")
