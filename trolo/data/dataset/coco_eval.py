@@ -8,7 +8,7 @@ import torch
 from faster_coco_eval import COCO, COCOeval_faster
 import faster_coco_eval.core.mask as mask_util
 from trolo.loaders.registry import register
-from trolo.utils import dist_utils, LOGGER
+from trolo.utils import dist_utils, logger
 
 __all__ = ['CocoEvaluator',]
 
