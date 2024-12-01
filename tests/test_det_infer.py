@@ -156,7 +156,7 @@ def test_confidence_thresholding(predictor, sample_image, conf_threshold):
 
 @pytest.fixture
 def predictor():
-    return DetectionPredictor(model="models/dfine_n.pth", device="cuda" if torch.cuda.is_available() else "cpu")
+    return DetectionPredictor(model="dfine_n.pth", device="cuda" if torch.cuda.is_available() else "cpu")
 
 
 @pytest.fixture
