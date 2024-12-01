@@ -35,8 +35,6 @@ def download_model(model_name: str, output_dir: str = ".") -> Optional[str]:
     output_dir = os.path.expanduser(output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    model_name = model_name.replace("models/", "")
-
     # Create both hyphen and underscore versions of the name
     name_variants = [model_name, model_name.replace("-", "_"), model_name.replace("_", "-")]
 
@@ -47,7 +45,7 @@ def download_model(model_name: str, output_dir: str = ".") -> Optional[str]:
     ]
 
     # GitHub release base URL
-    base_url = f"https://github.com/AyushExel/trolo/releases/download/{RELEASE_ASSETS_VER}"
+    base_url = f"https://github.com/ayushexel/trolo/releases/download/{RELEASE_ASSETS_VER}"
 
     # Try each name variant
     for name in name_variants:
