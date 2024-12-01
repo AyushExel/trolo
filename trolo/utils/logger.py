@@ -321,5 +321,18 @@ def configure_logger(name="default_logger", verbose=True, rank=0):
 
     return logger
 
-# Example usage
-LOGGER =  add_separator_method(configure_logger())
+# Lazy initialization of LOGGER
+def _initialize_logger():
+    return configure_logger()
+
+# Use a proxy to avoid circular imports
+class LoggerProxy:
+    _logger = None
+
+    def __getattr__(self, name):
+        if self._logger is None:
+            self._logger = _initialize_logger()
+        return getattr(self._logger, name)
+
+# Export the proxy logger
+LOGGER = LoggerProxy()
