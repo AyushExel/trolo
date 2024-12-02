@@ -1,8 +1,12 @@
 import time
+import logging
 import pickle
 import datetime
 from collections import defaultdict, deque
 from typing import Dict
+from colorama import init, Fore, Style
+import emoji
+import sys
 
 import torch
 import torch.distributed as tdist
@@ -227,3 +231,5 @@ class MetricLogger(object):
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
         print("{} Total time: {} ({:.4f} s / it)".format(header, total_time_str, total_time / len(iterable)))
+
+

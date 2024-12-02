@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ..utils import MetricLogger, SmoothedValue, reduce_dict
+from ..utils import MetricLogger, SmoothedValue, reduce_dict, logger
 
 
 def train_one_epoch(model: nn.Module, criterion: nn.Module, dataloader, optimizer, ema, epoch, device):
@@ -32,7 +32,7 @@ def train_one_epoch(model: nn.Module, criterion: nn.Module, dataloader, optimize
         metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
     metric_logger.synchronize_between_processes()
-    print("Averaged stats:", metric_logger)
+    logger.info(f"Averaged stats: {metric_logger}")
 
     stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
     return stats
@@ -61,7 +61,7 @@ def evaluate(model, criterion, dataloader, device):
         metric_logger.update(**reduced_values)
 
     metric_logger.synchronize_between_processes()
-    print("Averaged stats:", metric_logger)
+    logger.info(f"Averaged stats: {metric_logger}" )
 
     stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
     return stats
