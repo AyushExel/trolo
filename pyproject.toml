@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "trolo"
 version = "0.1.31"
-description = "CLI tool for D-FINE model training and inference"
+description = "A framework for harnessing the power of transformers with YOLO models and other single-shot detectors!"
 requires-python = ">=3.8"
 dependencies = [
     "click>=8.0.0",
