@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 import torch
 
-from trolo.utils import dist_utils
+from trolo.utils import dist_utils, logger
 from trolo.loaders import YAMLConfig, yaml_utils
 from trolo.trainers import TASKS
 from trolo.utils.smart_defaults import infer_device
@@ -32,7 +32,7 @@ if debug:
 def init_distributed_mode(device="cpu"):
     """Initialize distributed training based on available hardware."""
     if not torch.distributed.is_available():
-        print("Warning: Distributed package not available. Running in non-distributed mode.")
+        logger.warning(f"Distributed package not available. Running in non-distributed mode.")
         return
 
     try:
@@ -44,9 +44,8 @@ def init_distributed_mode(device="cpu"):
         # Initialize process group
         torch.distributed.init_process_group(backend=backend, init_method="tcp://localhost:12345", rank=0, world_size=1)
     except Exception as e:
-        print(f"Warning: Distributed training initialization failed: {e}")
-        print("Running in non-distributed mode.")
-
+        logger.warning(f"Distributed training initialization failed: {e}")
+        logger.info("Running in non-distributed mode.")
 
 def train_model(
     config: str,
@@ -110,7 +109,7 @@ def train_model(
         if "HGNetv2" in cfg.yaml_cfg:
             cfg.yaml_cfg["HGNetv2"]["pretrained"] = False
 
-    print("cfg: ", cfg.__dict__)
+    # logger.info(f"cfg: {cfg.__dict__}") # uncomment for debugging purpose.
 
     solver = TASKS[cfg.yaml_cfg["task"]](cfg)
 
@@ -120,7 +119,7 @@ def train_model(
         else:
             solver.fit()
     except Exception as e:
-        print(f"Training error: {e}")
+        logger.error(f"Training error: {e}")
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             torch.distributed.destroy_process_group()
         raise

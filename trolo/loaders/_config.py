@@ -9,6 +9,8 @@ from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from typing import Callable, List, Dict
 
+from ..utils.logging  import LOGGER
+
 
 __all__ = [
     "BaseConfig",
@@ -202,7 +204,7 @@ class BaseConfig(object):
     @property
     def val_shuffle(self) -> bool:
         if self._val_shuffle is None:
-            print("warning: set default val_shuffle=False")
+            logger.warning("Set default val_shuffle=False")
             return False
         return self._val_shuffle
 
@@ -214,7 +216,7 @@ class BaseConfig(object):
     @property
     def train_shuffle(self) -> bool:
         if self._train_shuffle is None:
-            print("warning: set default train_shuffle=True")
+            logger.warning("Set default train_shuffle=True")
             return True
         return self._train_shuffle
 
@@ -226,7 +228,7 @@ class BaseConfig(object):
     @property
     def train_batch_size(self) -> int:
         if self._train_batch_size is None and isinstance(self.batch_size, int):
-            print(f"warning: set train_batch_size=batch_size={self.batch_size}")
+            logger.warning(f"Set train_batch_size={self.batch_size}")
             return self.batch_size
         return self._train_batch_size
 
@@ -238,7 +240,7 @@ class BaseConfig(object):
     @property
     def val_batch_size(self) -> int:
         if self._val_batch_size is None:
-            print(f"warning: set val_batch_size=batch_size={self.batch_size}")
+            logger.warning(f"set val_batch_size={self.batch_size}")
             return self.batch_size
         return self._val_batch_size
 

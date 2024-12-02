@@ -7,7 +7,7 @@ from typing import Optional, Union, Dict
 import torch
 import torch.nn as nn
 
-from ..utils import dist_utils
+from ..utils import dist_utils, logger
 from .base import BaseTrainer
 from .clas_engine import train_one_epoch, evaluate
 
@@ -50,12 +50,12 @@ class ClassificationTrainer(BaseTrainer):
     def fit(
         self,
     ):
-        print("Start training")
+        logger.info("Start training")
         self.train()
         args = self.cfg
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-        print("Number of params:", n_parameters)
+        logger.info(f"Number of params: {n_parameters}" )
 
         output_dir = Path(args.output_dir)
         output_dir.mkdir(exist_ok=True)
@@ -102,4 +102,4 @@ class ClassificationTrainer(BaseTrainer):
 
         total_time = time.time() - start_time
         total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print("Training time {}".format(total_time_str))
+        logger.info(f"Training time {total_time_str}")

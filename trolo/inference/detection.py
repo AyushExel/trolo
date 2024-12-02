@@ -11,6 +11,7 @@ from ..loaders.maps import get_model_config_path
 from ..inference.video import VideoStream
 from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder, infer_pretrained_model
 
+from ..utils.logging import LOGGER
 
 class DetectionPredictor(BasePredictor):
     def __init__(
@@ -39,10 +40,10 @@ class DetectionPredictor(BasePredictor):
 
         if config is None:
             if "cfg" in checkpoint:
-                print("Loading config from checkpoint")
+                LOGGER.info("Loading config from checkpoint")
                 self.config = YAMLConfig.from_state_dict(checkpoint["cfg"])
             else:
-                print("Config not found in checkpoint, inferring from model name")
+                LOGGER.warning("Config not found in checkpoint, inferring from model name")
                 config = infer_model_config_path(model)
                 self.config = self.load_config(config)
         else:
@@ -56,7 +57,7 @@ class DetectionPredictor(BasePredictor):
 
     def load_config(self, config_path: str) -> Dict:
         """Load config from YAML"""
-        print(f"Loading config from {config_path}")
+        LOGGER.info(f"Loading config from {config_path}")
         cfg = YAMLConfig(config_path)
         return cfg
 
