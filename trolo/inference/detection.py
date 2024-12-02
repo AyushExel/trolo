@@ -1,8 +1,10 @@
 from typing import Union, List, Dict, Any, Tuple, Iterator, Optional
+from pathlib import Path
+
 import torch
 from PIL import Image
 import torchvision.transforms as T
-from pathlib import Path
+import supervision as sv
 
 from .base import BasePredictor
 from ..loaders import YAMLConfig
@@ -10,6 +12,7 @@ from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
 from ..inference.video import VideoStream
 from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder, infer_pretrained_model
+from ..utils.image_utils import letterbox_image, letterbox_adjust_boxes
 
 
 class DetectionPredictor(BasePredictor):
@@ -106,7 +109,7 @@ class DetectionPredictor(BasePredictor):
 
         return torch.stack(images).to(self.device)
 
-    def postprocess(self, outputs: torch.Tensor, original_sizes: List[tuple]) -> List[Dict[str, Any]]:
+    def postprocess(self, outputs: torch.Tensor, original_sizes: List[tuple], scales: List[float], paddings: List[tuple]) -> List[Dict[str, Any]]:
         """Convert model outputs to boxes, scores, labels
 
         Returns:
@@ -126,9 +129,7 @@ class DetectionPredictor(BasePredictor):
 
         # Scale normalized coordinates to image size
         boxes = boxes.clone()
-        for i, (h, w) in enumerate(original_sizes):
-            boxes[i, :, [0, 2]] *= w  # cx, w
-            boxes[i, :, [1, 3]] *= h  # cy, h
+        boxes = letterbox_adjust_boxes(boxes, original_sizes, scales, paddings)
 
         # Convert batch tensors to list of individual predictions
         predictions = []
@@ -193,20 +194,32 @@ class DetectionPredictor(BasePredictor):
         if isinstance(inputs, (str, Image.Image)):
             inputs = [inputs]
 
+        size = tuple(self.config.yaml_cfg["eval_spatial_size"])  # [H, W]
+        letterbox_sizes = []
         original_sizes = []
+        original_images = []
         input_images = []
+        scales = []
+        paddings = []
         for img in inputs:
             if isinstance(img, str):
                 img = Image.open(img).convert("RGB")
+            original_images.append(img)
+            original_sizes.append(img.size)
+            letterbox_sizes.append(size)
+            img, scale, padding = letterbox_image(img, size)
+            img = sv.cv2_to_pillow(img)
+            scales.append(scale)
+            paddings.append(padding)
             input_images.append(img)
-            original_sizes.append((img.height, img.width))
+
         # Process input
         batch = self.preprocess(input_images)
 
         # Run inference
         with torch.no_grad():
             outputs = self.model(batch)
-            predictions = self.postprocess(outputs, original_sizes)
+            predictions = self.postprocess(outputs, letterbox_sizes, scales, paddings)
 
         # Filter by confidence while maintaining batch dimension
         filtered_predictions = []
@@ -217,7 +230,7 @@ class DetectionPredictor(BasePredictor):
             )
 
         if return_inputs:
-            return filtered_predictions, input_images
+            return filtered_predictions, original_images
         return filtered_predictions
 
     def _predict_video(
