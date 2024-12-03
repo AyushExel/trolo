@@ -10,7 +10,7 @@ import cv2
 from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
 from trolo.inference.video import VideoStream
 from trolo.utils.draw_utils import draw_predictions
-
+from trolo.utils.logging import LOGGER
 
 class BasePredictor(ABC):
     def __init__(self, model_path: str, device: Optional[str] = None):
@@ -101,7 +101,7 @@ class BasePredictor(ABC):
         if save:
             save_dir = save_dir or infer_output_path()
             save_dir = Path(save_dir) if isinstance(save_dir, str) else save_dir
-            print(f"Saving to {save_dir}")
+            LOGGER.info(f"Saving to {save_dir}")
 
             if isinstance(viz_images, list):
                 for i, img in enumerate(viz_images):
