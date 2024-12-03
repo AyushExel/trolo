@@ -12,7 +12,7 @@ from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
 from ..inference.video import VideoStream
 from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder, infer_pretrained_model
-from ..utils.image_utils import letterbox_image, letterbox_adjust_boxes
+from ..utils.box_ops import letterbox_adjust_boxes
 
 
 class DetectionPredictor(BasePredictor):
@@ -109,7 +109,7 @@ class DetectionPredictor(BasePredictor):
 
         return torch.stack(images).to(self.device)
 
-    def postprocess(self, outputs: torch.Tensor, original_sizes: List[tuple], scales: List[float], paddings: List[tuple]) -> List[Dict[str, Any]]:
+    def postprocess(self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]) -> List[Dict[str, Any]]:
         """Convert model outputs to boxes, scores, labels
 
         Returns:
@@ -129,7 +129,7 @@ class DetectionPredictor(BasePredictor):
 
         # Scale normalized coordinates to image size
         boxes = boxes.clone()
-        boxes = letterbox_adjust_boxes(boxes, original_sizes, scales, paddings)
+        boxes = letterbox_adjust_boxes(boxes, letterbox_sizes, original_sizes)
 
         # Convert batch tensors to list of individual predictions
         predictions = []
@@ -199,18 +199,13 @@ class DetectionPredictor(BasePredictor):
         original_sizes = []
         original_images = []
         input_images = []
-        scales = []
-        paddings = []
         for img in inputs:
             if isinstance(img, str):
                 img = Image.open(img).convert("RGB")
             original_images.append(img)
             original_sizes.append(img.size)
             letterbox_sizes.append(size)
-            img, scale, padding = letterbox_image(img, size)
-            img = sv.cv2_to_pillow(img)
-            scales.append(scale)
-            paddings.append(padding)
+            img = sv.letterbox_image(img, size)
             input_images.append(img)
 
         # Process input
@@ -219,7 +214,7 @@ class DetectionPredictor(BasePredictor):
         # Run inference
         with torch.no_grad():
             outputs = self.model(batch)
-            predictions = self.postprocess(outputs, letterbox_sizes, scales, paddings)
+            predictions = self.postprocess(outputs, letterbox_sizes, original_sizes)
 
         # Filter by confidence while maintaining batch dimension
         filtered_predictions = []
