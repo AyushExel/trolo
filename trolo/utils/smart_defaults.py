@@ -5,7 +5,7 @@ This module contains utility functions for smart defaults.
 import os
 import torch
 from pathlib import Path
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, List
 from trolo.loaders.maps import MODEL_CONFIG_MAP, get_model_config_path
 from .assets import download_model
 
@@ -35,6 +35,8 @@ DEFAULT_MODEL = "dfine_n.pth"
 DEFAULT_OUTPUT_DIR = "output"
 
 MODEL_HUB = "..."
+SUPPORTED_IMG_FORMATS = [".jpg", ".jpeg", ".png", ".webp"]
+SUPPORTED_VIDEO_FORMATS = [".mp4", ".avi", ".mov", ".mkv"]
 
 
 def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
@@ -153,31 +155,29 @@ def infer_input_type(input_path: Union[str, Path]):
     """
     Infer the type of the input path.
     """
-    input_path = input_path if isinstance(input_path, str) else str(input_path)
+    input_path = Path(input_path)
+    if input_path.is_dir():
+        return "folder"
     # Check if video
-    if input_path.endswith((".mp4", ".avi", ".mov")):
+    elif input_path.suffix.lower() in SUPPORTED_VIDEO_FORMATS:
         return "video"
     # Check if image
-    elif input_path.endswith((".jpg", ".jpeg", ".png")):
+    elif input_path.suffix.lower() in SUPPORTED_IMG_FORMATS:
         return "image"
-    # check if directory
-    elif os.path.isdir(input_path):
-        return "folder"
-    # Add special case for webcam
-    elif input_path == "0":
+    # Add special case for webcam for upto 3 webcams
+    elif input_path.name in ["0", "1", "2"]:
         return "webcam"
     else:
         raise ValueError(f"Unsupported input type: {input_path}")
 
 
-def get_images_from_folder(input_path: str):
+def get_images_from_folder(input_path: str) -> List[str]:
     """
     Get all images from a folder non-recursively.
     """
-    image_extensions = (".jpg", ".jpeg", ".png")
-    imgs = []
-    for ext in image_extensions:
+    img_formats = []
+    for ext in SUPPORTED_IMG_FORMATS:
         # Add case-insensitive matching by checking both upper and lowercase extensions
-        imgs.extend([str(p) for p in Path(input_path).glob(f"*{ext.lower()}")])
-        imgs.extend([str(p) for p in Path(input_path).glob(f"*{ext.upper()}")])
-    return imgs
+        img_formats.extend([str(p) for p in Path(input_path).glob(f"*{ext.lower()}")])
+        img_formats.extend([str(p) for p in Path(input_path).glob(f"*{ext.upper()}")])
+    return img_formats
