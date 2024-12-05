@@ -1,6 +1,6 @@
 # Count Objects Crossing the Line
 
-[![Demo Video](thumbnail.png)](demo.mp4)
+[![Demo Video](thumbnail.png)](demo.gif)
 
 This example demonstrate the power of `trolo` using object detection to count object on a video, along with line zone counting functionality. It uses a pretained model for detection and provides an annotated output video with detected objects, tracking IDs, and counts of objects crossing a defined line zone. 
 
@@ -18,7 +18,7 @@ This example demonstrate the power of `trolo` using object detection to count ob
 	```	
 - Install required dependencies
 	```shell
-	pip install supervision
+	pip install trolo supervision tqdm
 	```
 
 ## How It Works
