@@ -1,6 +1,7 @@
 from typing import Optional
 import argparse
 
+from tqdm import tqdm
 import cv2
 import numpy as np
 import supervision as sv
@@ -32,6 +33,9 @@ def main(video_path: str,
     START = sv.Point(0, video_info.height // 2)
     END = sv.Point(video_info.width, video_info.height // 2)
 
+    video_info.height = int(video_info.height * 0.5)
+    video_info.width = int(video_info.width * 0.5)
+
     frames_generator = sv.get_video_frames_generator(video_path)
     if output_path:
         video_sink = sv.VideoSink(target_path=str(output_path), video_info=video_info).__enter__()
@@ -48,7 +52,7 @@ def main(video_path: str,
         thickness=4,
         text_thickness=4,
         text_scale=2)
-    for frame in frames_generator:
+    for frame in tqdm(frames_generator, desc="Counting Objects in the video"):
         # Detect objects in the frame
         detected_objects = detect_objects(model_predictor=predictor, image=frame, conf_threshold=conf_threshold)
         # Update the tracker with the detected objects
@@ -73,15 +77,16 @@ def main(video_path: str,
             if key == ord("q"):
                 break
         if output_path:
+            annotated_frame = sv.resize_image(annotated_frame, (video_info.width, video_info.height))
             annotated_frame = sv.pillow_to_cv2(annotated_frame)
             video_sink.write_frame(annotated_frame)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Object detection and tracking in video with line zone counting.")
-    parser.add_argument("--video_path", type=str, default="people-walking.mp4", help="Path to the input video file.")
+    parser.add_argument("--video_path", type=str, required=True, help="Path to the input video file.")
     parser.add_argument("--model_name", type=str, default="dfine-m", help="Name of the detection model.")
-    parser.add_argument("--output_path", type=str, default=None, help="Path to save the output annotated video.")
+    parser.add_argument("--output_path", type=str, default="demo.mp4", help="Path to save the output annotated video.")
     parser.add_argument("--vis", type=bool, default=True,
                         help="Whether to visualize the output frames (default: True).")
     parser.add_argument("--conf_threshold", type=float, default=0.35,
