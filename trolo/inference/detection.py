@@ -254,6 +254,9 @@ class DetectionPredictor(BasePredictor):
             for batch in video_stream:
                 frames = batch["frames"]
 
+                # convert to PIL
+                frames = [sv.cv2_to_pillow(frame) for frame in frames]
+
                 # Get predictions for batch
                 predictions = self.predict(frames, conf_threshold=conf_threshold, return_inputs=False)
 
