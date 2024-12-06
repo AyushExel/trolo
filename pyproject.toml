@@ -35,6 +35,12 @@ dev = [
     "pytest"
 ]
 
+onnx = [
+    "onnx",
+    "onnxruntime",
+    "onnxsim",
+]
+
 [project.scripts]
 trolo = "trolo.cli.cli:main"
 
