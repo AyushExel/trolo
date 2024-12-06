@@ -17,6 +17,7 @@ from ..utils.box_ops import letterbox_adjust_boxes
 
 from ..utils.logging import LOGGER
 
+
 class DetectionPredictor(BasePredictor):
     def __init__(
         self,
@@ -111,7 +112,9 @@ class DetectionPredictor(BasePredictor):
 
         return torch.stack(images).to(self.device)
 
-    def postprocess(self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]) -> List[Dict[str, Any]]:
+    def postprocess(
+        self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]
+    ) -> List[Dict[str, Any]]:
         """Convert model outputs to boxes, scores, labels
 
         Returns:

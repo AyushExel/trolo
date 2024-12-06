@@ -11,7 +11,7 @@ from ._config import BaseConfig
 from .registry import create_from_config
 from .yaml_utils import load_config, merge_config, merge_dict
 
-from ..utils.logging  import LOGGER
+from ..utils.logging import LOGGER
 
 
 class YAMLConfig(BaseConfig):
