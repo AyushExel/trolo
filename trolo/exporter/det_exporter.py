@@ -66,19 +66,16 @@ class DetExporter:
             def __init__(self, model, postprocessor) -> None:
                 super().__init__()
                 self.model = model
-                self.postprocessor = postprocessor
+                self.postprocessor = postprocessor.deploy()
 
             def forward(self, images, orig_target_sizes):
                 outputs = self.model(images)
                 outputs = self.postprocessor(outputs, orig_target_sizes)
-                print(outputs)
                 return outputs
-
 
         """Export model to ONNX format"""
         # Export model to ONNX
         LOGGER.info(f"Exporting model to ONNX: {self.output_path}")
-
         postprocessor = self.config.postprocessor
         model = Model(model=self.model, postprocessor=postprocessor)
         model = model.to(self.device)
@@ -89,22 +86,22 @@ class DetExporter:
         size = size.to(self.device)
         _ = model(data, size)
 
-        dynamic= False
-        # if dynamic:
-        #     dynamic_axes = {"images": {0: "batch", 2: "height", 3: "width"}}  # shape(1,3,640,640)
-
         torch.onnx.export(
             model,
             (data, size),
             self.output_path,
             input_names=['images', 'orig_target_sizes'],
-            output_names=['boxes', "labels", "scores"],
+            output_names=["labels", 'boxes', "scores"],
             dynamic_axes=None,
             opset_version=16,
             verbose=False,
-            do_constant_folding=True,
         )
-
+        check = True
+        if check:
+            import onnx
+            onnx_model = onnx.load(self.output_path)
+            onnx.checker.check_model(onnx_model)
+            LOGGER.info('Check export onnx model done...')
 
     def load_config(self, config_path: str) -> Dict:
         """Load config from YAML"""
