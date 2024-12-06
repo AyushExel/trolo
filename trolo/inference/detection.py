@@ -3,6 +3,7 @@ from pathlib import Path
 
 import torch
 from PIL import Image
+import numpy as np
 import torchvision.transforms as T
 import supervision as sv
 
@@ -15,6 +16,7 @@ from ..utils.smart_defaults import infer_input_type, infer_input_path, get_image
 from ..utils.box_ops import letterbox_adjust_boxes
 
 from ..utils.logging import LOGGER
+
 
 class DetectionPredictor(BasePredictor):
     def __init__(
@@ -110,7 +112,9 @@ class DetectionPredictor(BasePredictor):
 
         return torch.stack(images).to(self.device)
 
-    def postprocess(self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]) -> List[Dict[str, Any]]:
+    def postprocess(
+        self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]
+    ) -> List[Dict[str, Any]]:
         """Convert model outputs to boxes, scores, labels
 
         Returns:
@@ -141,7 +145,7 @@ class DetectionPredictor(BasePredictor):
 
     def predict(
         self,
-        inputs: Optional[Union[str, List[str], Image.Image, List[Image.Image]]] = None,
+        inputs: Optional[Union[str, List[str], np.ndarray, List[np.ndarray], Image.Image, List[Image.Image]]] = None,
         conf_threshold: float = 0.5,
         return_inputs: bool = False,
         batch_size: int = 1,
@@ -192,7 +196,7 @@ class DetectionPredictor(BasePredictor):
             if input_type == "folder":
                 inputs = get_images_from_folder(inputs)
         # Handle image inputs
-        if isinstance(inputs, (str, Image.Image)):
+        if isinstance(inputs, (str, np.ndarray, Image.Image)):
             inputs = [inputs]
 
         size = tuple(self.config.yaml_cfg["eval_spatial_size"])  # [H, W]
@@ -203,6 +207,8 @@ class DetectionPredictor(BasePredictor):
         for img in inputs:
             if isinstance(img, str):
                 img = Image.open(img).convert("RGB")
+            elif isinstance(img, np.ndarray):
+                img = sv.cv2_to_pillow(img).convert("RGB")
             original_images.append(img)
             original_sizes.append(img.size)
             letterbox_sizes.append(size)
@@ -246,20 +252,20 @@ class DetectionPredictor(BasePredictor):
                 all_frames = []
 
             for batch in video_stream:
-                frames = batch["frames"]  # List of RGB numpy arrays
+                frames = batch["frames"]
 
-                # Convert frames to PIL Images
-                pil_frames = [Image.fromarray(frame) for frame in frames]
+                # convert to PIL
+                frames = [sv.cv2_to_pillow(frame) for frame in frames]
 
                 # Get predictions for batch
-                predictions = self.predict(pil_frames, conf_threshold=conf_threshold, return_inputs=False)
+                predictions = self.predict(frames, conf_threshold=conf_threshold, return_inputs=False)
 
                 if stream:
-                    yield predictions, pil_frames if return_inputs else predictions
+                    yield predictions, frames if return_inputs else predictions
                 else:
                     all_predictions.extend(predictions)
                     if return_inputs:
-                        all_frames.extend(pil_frames)
+                        all_frames.extend(frames)
 
             if not stream:
                 return all_predictions, all_frames if return_inputs else all_predictions
