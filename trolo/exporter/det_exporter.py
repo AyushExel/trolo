@@ -71,6 +71,7 @@ class DetExporter:
             def forward(self, images, orig_target_sizes):
                 outputs = self.model(images)
                 outputs = self.postprocessor(outputs, orig_target_sizes)
+                print(outputs)
                 return outputs
 
 
@@ -88,18 +89,17 @@ class DetExporter:
         size = size.to(self.device)
         _ = model(data, size)
 
-        dynamic_axes = {
-        'images': {0: 'N', },
-        'orig_target_sizes': {0: 'N'}
-    }
+        dynamic= False
+        # if dynamic:
+        #     dynamic_axes = {"images": {0: "batch", 2: "height", 3: "width"}}  # shape(1,3,640,640)
 
         torch.onnx.export(
             model,
             (data, size),
             self.output_path,
             input_names=['images', 'orig_target_sizes'],
-            output_names=['output'],
-            dynamic_axes=dynamic_axes,
+            output_names=['boxes', "labels", "scores"],
+            dynamic_axes=None,
             opset_version=16,
             verbose=False,
             do_constant_folding=True,
