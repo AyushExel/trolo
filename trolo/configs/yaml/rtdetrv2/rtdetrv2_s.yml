@@ -1,13 +1,13 @@
 __include__: [
-  '../dataset/coco_detection.yml',
+  '../dataset/dummy_coco.yml',
   '../runtime.yml',
-  './include/dataloader.yml',
-  './include/optimizer.yml',
-  './include/rtdetrv2_r50vd.yml',
+  '../include/dataloader.yml',
+  '../include/optimizer.yml',
+  'base.yml',
 ]
 
 
-output_dir: ./output/rtdetrv2_s_coco
+output_dir: ./output/rtdetrv2_r18vd_120e_coco
 
 
 PResNet:

@@ -89,10 +89,13 @@ class BatchImageCollateFunction(BaseCollateFunction):
         ema_restart_decay=0.9999,
         base_size=640,
         base_size_repeat=None,
+        scales=None,
     ) -> None:
         super().__init__()
         self.base_size = base_size
-        self.scales = generate_scales(base_size, base_size_repeat) if base_size_repeat is not None else None
+        self.scales = scales
+        if scales is None:
+            self.scales = generate_scales(base_size, base_size_repeat) if base_size_repeat is not None else None
         self.stop_epoch = stop_epoch if stop_epoch is not None else 100000000
         self.ema_restart_decay = ema_restart_decay
         # self.interpolation = interpolation
