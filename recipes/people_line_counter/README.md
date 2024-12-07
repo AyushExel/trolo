@@ -44,7 +44,7 @@ This example demonstrate the power of `trolo` using object detection to count ob
 
 #### Basic Usage
 ```bash
-python script.py --video_path people-walking.mp4
+python line_counter.py --video_path people-walking.mp4
 ```
 
 We thank Supervision to provide ready to use application apis.
