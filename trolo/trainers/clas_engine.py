@@ -61,7 +61,7 @@ def evaluate(model, criterion, dataloader, device):
         metric_logger.update(**reduced_values)
 
     metric_logger.synchronize_between_processes()
-    logger.info(f"Averaged stats: {metric_logger}" )
+    logger.info(f"Averaged stats: {metric_logger}")
 
     stats = {k: meter.global_avg for k, meter in metric_logger.meters.items()}
     return stats

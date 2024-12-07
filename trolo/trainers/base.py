@@ -287,8 +287,12 @@ class BaseTrainer(object):
             raise TypeError(f"Unsupported dataset type: {type(dataset)}")
 
         # Print configs before merge for debugging
-        LOGGER.info(f"Model config transforms: {model_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}")
-        LOGGER.info(f"Dataset config transforms: {dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}")
+        LOGGER.info(
+            f"Model config transforms: {model_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}"
+        )
+        LOGGER.info(
+            f"Dataset config transforms: {dataset_config.get('train_dataloader', {}).get('dataset', {}).get('transforms')}"
+        )
 
         # Merge configs
         cfg = YAMLConfig.merge_configs(model_config, dataset_config, **overrides)

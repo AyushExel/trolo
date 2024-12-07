@@ -6,3 +6,5 @@ from .data import *
 from .configs import *
 
 from .loaders.registry import GLOBAL_CONFIG
+from .inference import DetectionPredictor
+from .utils.box_ops import to_sv

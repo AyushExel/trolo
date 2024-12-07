@@ -96,7 +96,7 @@ def train_one_epoch(
         loss_value = sum(loss_dict_reduced.values())
 
         if not math.isfinite(loss_value):
-            LOGGER.info(F"Loss is {loss_value}, stopping training")
+            LOGGER.info(f"Loss is {loss_value}, stopping training")
             LOGGER.info(f"{loss_dict_reduced}")
             sys.exit(1)
 

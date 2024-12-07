@@ -2,6 +2,7 @@ import pytest
 import logging
 from trolo.utils.logging.glob_logger import platform_safe_emojis, configure_logger, add_separator_method
 
+
 @pytest.fixture
 def test_logger():
     """Fixture to create a test logger with separator support."""

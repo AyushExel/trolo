@@ -27,7 +27,7 @@ class VideoStream:
                     yield {"frames": frames, "frame_ids": frame_ids}
                 break
 
-            frames.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+            frames.append(frame)
             frame_ids.append(int(self.cap.get(cv2.CAP_PROP_POS_FRAMES)))
 
             if len(frames) == self.batch_size:
