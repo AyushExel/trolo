@@ -37,7 +37,7 @@ DEFAULT_OUTPUT_DIR = "output"
 MODEL_HUB = "..."
 SUPPORTED_IMG_FORMATS = [".jpg", ".jpeg", ".png", ".webp"]
 SUPPORTED_VIDEO_FORMATS = [".mp4", ".avi", ".mov", ".mkv"]
-
+SUPPORTED_EXPORT_TYPES = [".onnx"]
 
 def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
     """
@@ -54,6 +54,10 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
 
     if local_path.exists():
         # Return the absolute path
+        print("#####################################")
+        print(local_path)
+        print("#####################################")
+
         return str(local_path.resolve())
     # If model name is in hub models list, download it
     local_path = download_model(model_path)
@@ -66,7 +70,6 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
         f"Could not find model at {model_path} or in default model directory. "
         f"For pretrained models, please ensure the model name is found in the trolo model hub."
     )
-
 
 def infer_input_path(input_path: str = None):
     """
@@ -81,7 +84,6 @@ def infer_input_path(input_path: str = None):
         raise FileNotFoundError(f"Could not find input at {input_path}")
 
     return input_path
-
 
 def infer_model_config_path(config_file: str = None):
     """
@@ -99,7 +101,6 @@ def infer_model_config_path(config_file: str = None):
 
     raise FileNotFoundError(f"Could not find config file at {config_file} or in package config directory.")
 
-
 def infer_device(device: Optional[str] = None):
     """
     If no device is provided, check if CUDA is available and use the first available GPU.
@@ -112,7 +113,6 @@ def infer_device(device: Optional[str] = None):
             return "cpu"
 
     return device
-
 
 def infer_output_path(output_path: str = DEFAULT_OUTPUT_DIR):
     """
@@ -150,7 +150,6 @@ def infer_output_path(output_path: str = DEFAULT_OUTPUT_DIR):
             return str(new_path)
         counter += 1
 
-
 def infer_input_type(input_path: Union[str, Path]):
     """
     Infer the type of the input path.
@@ -170,7 +169,6 @@ def infer_input_type(input_path: Union[str, Path]):
     else:
         raise ValueError(f"Unsupported input type: {input_path}")
 
-
 def get_images_from_folder(input_path: str) -> List[str]:
     """
     Get all images from a folder non-recursively.
@@ -181,3 +179,47 @@ def get_images_from_folder(input_path: str) -> List[str]:
         img_formats.extend([str(p) for p in Path(input_path).glob(f"*{ext.lower()}")])
         img_formats.extend([str(p) for p in Path(input_path).glob(f"*{ext.upper()}")])
     return img_formats
+
+def get_output_name(model_path:Union[str, Path] =  DEFAULT_MODEL, export_format : str = None, output_path : Optional[str] =  None ) -> str:
+
+    model_path =  Path(infer_pretrained_model(model_path))
+
+    export_dir  =  Path(output_path or  model_path.parent)
+    if not export_dir.exists():
+        export_dir.mkdir(parents=True)
+    
+    if not export_format:
+        # LOGGER.warning(f"No export format specified. Exporting model as 'onnx by default.")
+        export_format = model_path.suffix.lstrip('.')  # Use current suffix if none provided
+
+    exported_model = export_dir / f"{model_path.stem}.{export_format}"
+
+    # if exported_model.exists():
+    #     raise  FileExistsError(
+    #         f"The export file '{exported_model}' already exists."
+    #     )
+
+    return str(exported_model)
+
+def format_size(size_input):
+    if isinstance(size_input, int):
+        size =  torch.tensor([[size_input, size_input]])
+    elif isinstance(size_input, (list, tuple)) and len(size_input) == 2:
+        size  = torch.tensor([size_input])
+    elif isinstance(size_input, torch.Tensor) and size_input.dim() == 2:
+        size  = size_input
+    else:
+        raise ValueError("Invalid size input. Must be an int, a tuple/list of two values, or a [N, 2] tensor.")
+    return size
+
+def format_input(data_input, batch_size = 1):
+    if isinstance(data_input, int):  
+        data = torch.rand(batch_size, 3, data_input, data_input) 
+    elif isinstance(data_input, (list, tuple)) and len(data_input) == 2: 
+        h, w = data_input
+        data = torch.rand(batch_size, 3, h, w)  
+    elif isinstance(data_input, torch.Tensor) and data_input.dim() == 4: 
+        data = data_input
+    else:
+        raise ValueError("Invalid data input. Must be an int, a tuple/list of two values, or a 4D tensor.")
+    return data
