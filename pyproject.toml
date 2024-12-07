@@ -25,7 +25,9 @@ dependencies = [
     "numpy<=1.26.4",
     "supervision",
     "emoji",
-    "colorama"
+    "colorama",. 
+    "onnx",
+    "onnxsim"
 ]
 
 [project.optional-dependencies]
