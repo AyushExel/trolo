@@ -25,9 +25,7 @@ dependencies = [
     "numpy<=1.26.4",
     "supervision",
     "emoji",
-    "colorama",
-    "onnx",
-    "onnxsim"
+    "colorama"
 ]
 
 [project.optional-dependencies]
@@ -35,6 +33,11 @@ dependencies = [
 dev = [
     "ruff>=0.6.1",
     "pytest"
+]
+
+export = [
+    "onnx",
+    "onnxsim",
 ]
 
 [project.scripts]
