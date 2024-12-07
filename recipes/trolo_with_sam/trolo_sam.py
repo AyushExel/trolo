@@ -109,9 +109,9 @@ def main(image_path: str,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Object detection and tracking in video with line zone counting.")
-    parser.add_argument("--image_path", type=str, default="dog.jpg", help="Path to the input image file.")
+    parser.add_argument("--image_path", type=str, help="Path to the input image file.")
     parser.add_argument("--model_name", type=str, default="dfine-l", help="Name of the detection model.")
-    parser.add_argument("--sam_model_name", type=str, default="vit_l", help="Name of the SAM model.")
+    parser.add_argument("--sam_model_name", type=str, default="vit_b", help="Name of the SAM model.")
     parser.add_argument("--output_path", type=str, help="Path to save the output annotated image.")
     parser.add_argument("--vis", type=bool, default=True,
                         help="Whether to visualize the output frames (default: True).")
@@ -123,7 +123,7 @@ if __name__ == "__main__":
         image_path=args.image_path,
         model_name=args.model_name,
         sam_model_name=args.sam_model_name,
-        output_path=args.output_path,
+        output_path="demo.jpg",
         vis=args.vis,
         conf_threshold=float(args.conf_threshold)
     )
