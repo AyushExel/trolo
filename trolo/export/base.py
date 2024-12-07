@@ -44,11 +44,3 @@ class BaseExporter(ABC):
     def _filter_format(self, export_format : str = DEFAULT_EXPORT_FORMAT) -> str:
         if export_format not in DEFAULT_EXPORT_FORMAT:
             raise ValueError(f"Unsupported export format: '{export_format}'. Supported formats are: {', '.join(DEFAULT_EXPORT_FORMAT)}")
-        return True
-            
-    def _simplify_onnx(self, exported_path :str):
-        import onnxsim
-        onnx_model_simplified, check = onnxsim.simplify(exported_path)
-        onnx.save(onnx_model_simplified, exported_path)
-
-    

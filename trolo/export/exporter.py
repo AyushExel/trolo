@@ -6,7 +6,7 @@ from .base import BaseExporter
 from ..loaders import YAMLConfig
 from ..loaders.maps import get_model_config_path
 
-from ..utils.smart_defaults import infer_pretrained_model,  get_output_name, format_size, format_input
+from ..utils.smart_defaults import infer_pretrained_model
 from ..utils.logging.glob_logger import LOGGER
 
 class ModelExporter(BaseExporter):
@@ -81,51 +81,34 @@ class ModelExporter(BaseExporter):
 
     def export(
         self, 
-        export_format ,
-        input_size ,
-        input_data , 
-        input_names  , 
-        output_names ,
-        dynamic_axes,
-        batch_size : int =  1,
-        opset_version : int = 16,
-        simplify : bool = False,
+        input_size : Union[List, Tuple] =  [640, 640], 
+        export_format : str = "onnx"
     ):
         # check the model format
         if export_format is None:
             raise ValueError(f"Export format is missing!")
         
-        #  check for export format
+        # check for export format
         accepted = self._filter_format(export_format)
 
         if export_format.lower().strip() == "onnx":
             self._export2onnx(
-                input_size=input_size, 
-                input_data = input_data, 
-                input_names =  input_names, 
-                output_names = output_names,
-                dynamic_axes= dynamic_axes,
-                batch_size = batch_size, 
-                simplify = simplify, 
-                opset_version = opset_version
+                input_size=torch.tensor(input_size)
             )
-
 
     def _export2onnx(
         self,
-        input_size : Union[int, List, Tuple, torch.Tensor] = None,
-        input_data : Union[int, List, Tuple, torch.Tensor] = None, 
-        input_names : Optional[list] =  None, 
-        output_names : Optional[list] =  None,
-        dynamic_axes : Optional [dict] =  None,
+        input_size : Union[List, Tuple] = None,
+        input_names : Optional[list] =  ['images', 'orig_target_sizes'], 
+        output_names : Optional[list] =  ['pred_logits', 'pred_boxes'],
+        dynamic_axes : Optional [dict] =  {'images': {0: 'N'}, 'orig_target_sizes': {0: 'N'}},
         batch_size : int =  1,
         opset_version : int = 16,
-        simplify : bool = False,
-        export_format : str = "onnx"
+        simplify : bool = False
     ) -> None: 
-        input_size  = format_size(input_size)
-        input_data  = format_input(input_data, batch_size=batch_size)
-        exported_path  =  get_output_name(model_path = self.model_path, export_format = export_format)
+        input_size  = torch.tensor(input_size)
+        input_data = torch.rand(batch_size, 3, *input_size)
+        exported_path  =  f"{self.model_path.replace('pth', "onnx")}"
 
         dynamic_axes = dynamic_axes  or {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
         torch.onnx.export(
@@ -146,9 +129,8 @@ class ModelExporter(BaseExporter):
         LOGGER.info(f"Model exported to ONNX: {exported_path}")
 
         if simplify:
-            self._simplify_onnx(exported_path)
-
-
-        
+            import onnxsim
+            onnx_model_simplified, check = onnxsim.simplify(exported_path)
+            onnx.save(onnx_model_simplified, exported_path)        
 
         
