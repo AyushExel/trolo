@@ -18,6 +18,7 @@ from torch.utils.data import DistributedSampler
 # from torch.utils.data.dataloader import DataLoader
 from ..data import DataLoader
 
+
 def setup_distributed(
     print_rank: int = 0,
     print_method: str = "builtin",

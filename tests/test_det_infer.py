@@ -48,6 +48,8 @@ def sample_image():
 #    # Check device placement
 #    assert next(predictor.model.parameters()).device == predictor.device
 #
+
+
 def test_predictor_preprocess(predictor, sample_image):
     """Test image preprocessing"""
     # Test single image
@@ -64,6 +66,30 @@ def test_predictor_preprocess(predictor, sample_image):
     output_batch = predictor.preprocess([sample_image, sample_image])
     assert output_batch.shape[0] == 2
     assert output_batch.shape[1:] == output.shape[1:]
+
+
+def test_predictor_inference_np_array(predictor, sample_image):
+    """Test end-to-end inference"""
+    sample_image = np.array(sample_image)
+    with torch.no_grad():
+        result = predictor.predict(sample_image)
+
+    # Check output format
+    assert isinstance(result, list)
+    assert len(result) == 1  # Single image input = single result
+    result = result[0]  # Get first prediction
+
+    assert isinstance(result, dict)
+    assert all(k in result for k in ["boxes", "scores", "labels"])
+
+    # Check output shapes
+    assert len(result["boxes"].shape) == 2  # (num_boxes, 4)
+    assert len(result["scores"].shape) == 1  # (num_boxes,)
+    assert len(result["labels"].shape) == 1  # (num_boxes,)
+
+    # Check value ranges
+    assert result["scores"].min() >= 0 and result["scores"].max() <= 1
+    assert result["labels"].min() >= 0 and result["labels"].max() < 80  # COCO classes
 
 
 def test_predictor_inference(predictor, sample_image):

@@ -55,7 +55,7 @@ class ClassificationTrainer(BaseTrainer):
         args = self.cfg
 
         n_parameters = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
-        logger.info(f"Number of params: {n_parameters}" )
+        logger.info(f"Number of params: {n_parameters}")
 
         output_dir = Path(args.output_dir)
         output_dir.mkdir(exist_ok=True)

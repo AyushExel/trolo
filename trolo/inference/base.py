@@ -12,6 +12,7 @@ from trolo.inference.video import VideoStream
 from trolo.utils.draw_utils import draw_predictions
 from trolo.utils.logging import LOGGER
 
+
 class BasePredictor(ABC):
     def __init__(self, model_path: str, device: Optional[str] = None):
         self.device = torch.device(infer_device(device))

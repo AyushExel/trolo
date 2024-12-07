@@ -47,6 +47,7 @@ def init_distributed_mode(device="cpu"):
         logger.warning(f"Distributed training initialization failed: {e}")
         logger.info("Running in non-distributed mode.")
 
+
 def train_model(
     config: str,
     resume: str = None,
