@@ -54,10 +54,6 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
 
     if local_path.exists():
         # Return the absolute path
-        print("#####################################")
-        print(local_path)
-        print("#####################################")
-
         return str(local_path.resolve())
     # If model name is in hub models list, download it
     local_path = download_model(model_path)
