@@ -108,7 +108,7 @@ class ModelExporter(BaseExporter):
     ) -> None: 
         input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
-        exported_path  =  f"{self.model_path.replace('pth', "onnx")}"
+        exported_path  =  f"{self.model_path.replace('pth', 'onnx')}"
 
         dynamic_axes = dynamic_axes  or {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
         torch.onnx.export(
