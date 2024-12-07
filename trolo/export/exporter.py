@@ -132,5 +132,7 @@ class ModelExporter(BaseExporter):
             import onnxsim
             onnx_model_simplified, check = onnxsim.simplify(exported_path)
             onnx.save(onnx_model_simplified, exported_path)        
+            onnx_model  = onnx.load(exported_path)
+            onnx.checker.check_model(onnx_model)
 
         
