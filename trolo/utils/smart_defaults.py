@@ -37,7 +37,7 @@ DEFAULT_OUTPUT_DIR = "output"
 MODEL_HUB = "..."
 SUPPORTED_IMG_FORMATS = [".jpg", ".jpeg", ".png", ".webp"]
 SUPPORTED_VIDEO_FORMATS = [".mp4", ".avi", ".mov", ".mkv"]
-
+SUPPORTED_EXPORT_TYPES = [".onnx"]
 
 def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
     """
@@ -67,7 +67,6 @@ def infer_pretrained_model(model_path: str = DEFAULT_MODEL):
         f"For pretrained models, please ensure the model name is found in the trolo model hub."
     )
 
-
 def infer_input_path(input_path: str = None):
     """
     First check if the path exists, if not raise error.
@@ -81,7 +80,6 @@ def infer_input_path(input_path: str = None):
         raise FileNotFoundError(f"Could not find input at {input_path}")
 
     return input_path
-
 
 def infer_model_config_path(config_file: str = None):
     """
@@ -99,7 +97,6 @@ def infer_model_config_path(config_file: str = None):
 
     raise FileNotFoundError(f"Could not find config file at {config_file} or in package config directory.")
 
-
 def infer_device(device: Optional[str] = None):
     """
     If no device is provided, check if CUDA is available and use the first available GPU.
@@ -112,7 +109,6 @@ def infer_device(device: Optional[str] = None):
             return "cpu"
 
     return device
-
 
 def infer_output_path(output_path: str = DEFAULT_OUTPUT_DIR):
     """
@@ -150,7 +146,6 @@ def infer_output_path(output_path: str = DEFAULT_OUTPUT_DIR):
             return str(new_path)
         counter += 1
 
-
 def infer_input_type(input_path: Union[str, Path]):
     """
     Infer the type of the input path.
@@ -169,7 +164,6 @@ def infer_input_type(input_path: Union[str, Path]):
         return "webcam"
     else:
         raise ValueError(f"Unsupported input type: {input_path}")
-
 
 def get_images_from_folder(input_path: str) -> List[str]:
     """
