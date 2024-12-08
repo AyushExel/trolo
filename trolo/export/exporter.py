@@ -1,5 +1,6 @@
 from typing import Dict, Union, Optional, List, Tuple
 import torch
+import os
 import torch.nn as nn 
 import onnx
 from pathlib import Path
@@ -95,15 +96,14 @@ class ModelExporter(BaseExporter):
 
     def export(
         self, 
-        input_size : Union[List, Tuple] =  [640, 640], 
+        input_size : Union[List, Tuple[int, int], int] =  (640, 640),
         export_format : str = "onnx"
     ):
+        if isinstance(input_size, int):
+            input_size = (input_size, input_size)
         # check the model format
         if export_format is None:
             raise ValueError(f"Export format is missing!")
-        
-        # check for export format
-        accepted = self._filter_format(export_format)
 
         if export_format.lower().strip() == "onnx":
             self._export2onnx(
@@ -122,11 +122,13 @@ class ModelExporter(BaseExporter):
     ) -> None: 
         input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
-        exported_path  =  f"{self.model_path.replace('pth', 'onnx')}"
-
+        filename, file_ext = os.path.splitext(self.model_path)
+        exported_path  =  f"{filename}.onnx"
         dynamic_axes = dynamic_axes  or {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
+
+        dynamic_axes = None
         torch.onnx.export(
-            self.model,
+            self.model.cpu(),
             (input_data, input_size),
             exported_path,
             input_names = input_names, 
