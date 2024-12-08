@@ -7,7 +7,7 @@ from .base import BaseExporter
 from ..loaders import YAMLConfig
 from ..loaders.maps import get_model_config_path
 
-from ..utils.smart_defaults import infer_pretrained_model
+from ..utils.smart_defaults import infer_pretrained_model, infer_model_config_path
 from ..utils.logging.glob_logger import LOGGER
 
 class ModelExporter(BaseExporter):
