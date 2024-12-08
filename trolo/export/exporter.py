@@ -1,5 +1,6 @@
-from typing import Dict, Union, Optional, List, Tuple, Any
-import torch 
+from typing import Dict, Union, Optional, List, Tuple
+import torch
+import torch.nn as nn 
 import onnx
 from pathlib import Path
 from .base import BaseExporter
@@ -74,10 +75,23 @@ class ModelExporter(BaseExporter):
         # Load state into config.model
         self.config.model.load_state_dict(state)
 
+        class ModelWrapper(nn.Module):
+            def __init__(self, model, config):
+                super().__init__()
+                self.model = model
+                self.config =  config
+                self.postprocessor = self.config.postprocessor.deploy()
+
+            def forward(self, images, orig_target_sizes):
+                # Run base model
+                outputs = self.model(images)
+                outputs = self.postprocessor(outputs, orig_target_sizes)
+                return outputs
+
         # Create deployment model wrapper
         model = self.config.model.deploy()
-
-        return model
+        wrapped_model = ModelWrapper(model, self.config)
+        return wrapped_model
 
     def export(
         self, 
@@ -99,117 +113,39 @@ class ModelExporter(BaseExporter):
     def _export2onnx(
         self,
         input_size : Union[List, Tuple] = None,
-        input_names : Optional[list] =  None, 
-        output_names : Optional[list] =  None,
-        dynamic_axes : Optional [dict] =  None,
+        input_names : Optional[list] =  ['images', 'orig_target_sizes'], 
+        output_names : Optional[list] =  ['labels', 'boxes', 'scores'],
+        dynamic_axes : Optional [dict] =  {'images': {0: 'N'}, 'orig_target_sizes': {0: 'N'}},
         batch_size : int =  1,
         opset_version : int = 16,
         simplify : bool = False
     ) -> None: 
-        # Default input and output names with post-processing
-        input_names = ['images', 'orig_target_sizes']
-        output_names =['boxes', 'scores', 'labels']
-        
-        # Prepare dynamic axes
-        dynamic_axes = dynamic_axes or {
-            'images': {0: 'N'}, 
-            'orig_target_sizes': {0: 'N'},
-            'boxes': {0: 'N', 1: 'M'},
-            'scores': {0: 'N'},
-            'labels': {0: 'N'}
-        }
-
-        input_size = torch.tensor(input_size)
+        input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
-        letterbox_sizes = torch.tensor([[input_size[0], input_size[1]]] * batch_size, dtype=torch.float32)
-        original_sizes = torch.tensor([[input_size[0], input_size[1]]] * batch_size, dtype=torch.float32)
+        exported_path  =  f"{self.model_path.replace('pth', 'onnx')}"
 
-        # Define a wrapper function that includes post-processing
-        class PostProcessWrapper(torch.nn.Module):
-            def __init__(self, model):
-                super().__init__()
-                self.model = model
-
-            def forward(self, images, orig_target_sizes):
-                # Get model outputs
-                outputs = self.model(images)
-                
-                # Perform softmax on logits
-                if isinstance(outputs, dict):
-                    logits = outputs["pred_logits"]
-                    boxes = outputs["pred_boxes"]
-                else:
-                    logits, boxes = outputs
-
-                probs = logits.softmax(-1)
-                scores, labels = probs.max(-1)
-
-                # Placeholder for letterbox adjustments (you might need to implement this)
-                # This is a simplified version and might need customization
-                boxes_adjusted = boxes.clone()
-                
-                return boxes_adjusted, scores, labels
-
-        # Create the wrapper model
-        wrapped_model = PostProcessWrapper(self.model)
-
-        # Exported path
-        exported_path = f"{self.model_path.replace('pth', 'onnx')}"
-
-        # Export to ONNX with post-processing
+        dynamic_axes = dynamic_axes  or {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
         torch.onnx.export(
-            wrapped_model,
-            (input_data, original_sizes),
+            self.model,
+            (input_data, input_size),
             exported_path,
-            input_names=input_names, 
-            output_names=output_names,
+            input_names = input_names, 
+            output_names = output_names,
             dynamic_axes=dynamic_axes,
-            opset_version=opset_version,
+            opset_version=16,
             verbose=False,
             do_constant_folding=True,
         )
 
-        # Validate the ONNX model
-        onnx_model = onnx.load(exported_path)
+        # TODO -  Exceptional Handler 
+        onnx_model  = onnx.load(exported_path)
         onnx.checker.check_model(onnx_model)
         LOGGER.info(f"Model exported to ONNX: {exported_path}")
 
-        # Optional model simplification
         if simplify:
             import onnxsim
             onnx_model_simplified, check = onnxsim.simplify(exported_path)
             onnx.save(onnx_model_simplified, exported_path)        
-            onnx_model = onnx.load(exported_path)
+            onnx_model  = onnx.load(exported_path)
             onnx.checker.check_model(onnx_model)
-            LOGGER.info(f"Simplified Model exported to ONNX: {exported_path}")
-
-    def postprocess(
-        self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]
-    ) -> List[Dict[str, Any]]:
-        """Convert model outputs to boxes, scores, labels
-
-        Returns:
-            List of dictionaries, one per image, each containing:
-                - boxes: tensor of shape (N, 4) in [cx, cy, w, h] format
-                - scores: tensor of shape (N,)
-                - labels: tensor of shape (N,)
-        """
-        if isinstance(outputs, dict):
-            logits = outputs["pred_logits"]
-            boxes = outputs["pred_boxes"]  # [cx, cy, w, h] format
-        else:
-            logits, boxes = outputs
-
-        probs = logits.softmax(-1)
-        scores, labels = probs.max(-1)
-
-        # Scale normalized coordinates to image size
-        boxes = boxes.clone()
-        boxes = letterbox_adjust_boxes(boxes, letterbox_sizes, original_sizes)
-
-        # Convert batch tensors to list of individual predictions
-        predictions = []
-        for i in range(len(original_sizes)):
-            predictions.append({"boxes": boxes[i].cpu(), "scores": scores[i].cpu(), "labels": labels[i].cpu()})
-
-        return predictions
+        

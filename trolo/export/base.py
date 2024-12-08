@@ -11,6 +11,7 @@ from typing  import Optional, List, Tuple, Union, Dict
 from trolo.utils.smart_defaults import  infer_device
 
 DEFAULT_EXPORT_FORMAT = ["onnx"]
+
 class BaseExporter(ABC):
     def __init__(self, model_path : str, device : Optional[str] = None) -> None : 
                 self.device =  torch.device(infer_device(device))
@@ -27,14 +28,7 @@ class BaseExporter(ABC):
     def export(
         self, 
         export_format : str = None,
-        input_size : Union[int, List, Tuple, torch.Tensor] = None,
-        input_data : Union[int, List, Tuple, torch.Tensor] = None, 
-        input_names : Optional[list] =  None, 
-        output_names : Optional[list] =  None,
-        dynamic_axes : Optional[dict] =  None,
-        batch_size : int =  1,
-        opset_version : int = 16,
-        simplify : bool = False,
+        input_size : Union[int, List, Tuple, torch.Tensor] = None
     ) -> str:
         """
             Export the PyTorch model to ONNX format.
