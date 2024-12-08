@@ -77,21 +77,22 @@ class ModelExporter(BaseExporter):
         self.config.model.load_state_dict(state)
 
         class ModelWrapper(nn.Module):
-            def __init__(self, model, config):
+            def __init__(self, model):
                 super().__init__()
                 self.model = model
-                self.config =  config
-                self.postprocessor = self.config.postprocessor.deploy()
 
-            def forward(self, images, orig_target_sizes):
+            def forward(self, images):
                 # Run base model
                 outputs = self.model(images)
-                outputs = self.postprocessor(outputs, orig_target_sizes)
-                return outputs
+                logits, boxes = outputs["pred_logits"], outputs["pred_boxes"]
+                # Post-process outputs
+                probs = logits.softmax(-1)
+                scores, labels = probs.max(-1)
+                return labels, boxes, scores
 
         # Create deployment model wrapper
         model = self.config.model.deploy()
-        wrapped_model = ModelWrapper(model, self.config)
+        wrapped_model = ModelWrapper(model)
         return wrapped_model
 
     def export(
@@ -113,12 +114,10 @@ class ModelExporter(BaseExporter):
     def _export2onnx(
         self,
         input_size : Union[List, Tuple] = None,
-        input_names : Optional[list] =  ['images', 'orig_target_sizes'], 
-        output_names : Optional[list] =  ['labels', 'boxes', 'scores'],
         dynamic_axes : Optional [dict] =  {'images': {0: 'N'}, 'orig_target_sizes': {0: 'N'}},
-        batch_size : int =  1,
-        opset_version : int = 16,
-        simplify : bool = False
+        batch_size : Optional[int] =  1,
+        opset_version : Optional[int] = 16,
+        simplify : Optional[bool] = False
     ) -> None: 
         input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
@@ -126,15 +125,18 @@ class ModelExporter(BaseExporter):
         exported_path  =  f"{filename}.onnx"
         dynamic_axes = dynamic_axes  or {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
 
+        input_names = ['images', 'orig_target_sizes']
+        output_names = ['labels', 'boxes', 'scores']
+
         dynamic_axes = None
         torch.onnx.export(
             self.model.cpu(),
-            (input_data, input_size),
+            input_data,
             exported_path,
             input_names = input_names, 
             output_names = output_names,
             dynamic_axes=dynamic_axes,
-            opset_version=16,
+            opset_version=opset_version,
             verbose=False,
             do_constant_folding=True,
         )
