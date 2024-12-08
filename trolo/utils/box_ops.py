@@ -1,5 +1,6 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 
+import numpy as np
 import torch
 import torchvision
 from torch import Tensor
@@ -24,14 +25,20 @@ def xcycwh_to_xyxy(boxes: Tensor) -> Tensor:
 def to_sv(results: Dict) -> sv.Detections:
     detections = sv.Detections.empty()
     if "boxes" in results:
-        boxes = results["boxes"].numpy()
-        scores = results["scores"].numpy()
-        labels = results["labels"].numpy()
-        detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
+        if isinstance(results["boxes"], torch.Tensor):
+            boxes = results["boxes"].cpu().numpy()
+            scores = results["scores"].cpu().numpy()
+            labels = results["labels"].cpu().numpy()
+            detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
+        elif isinstance(results["boxes"], np.ndarray):
+            boxes = results["boxes"]
+            scores = results["scores"]
+            labels = results["labels"]
+            detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
     return detections
 
 
-def letterbox_adjust_boxes(boxes, letterbox_sizes: Tuple[int, int], original_sizes: Tuple[int, int]):
+def letterbox_adjust_boxes(boxes: Union[torch.Tensor, np.ndarray], letterbox_sizes: Tuple[int, int], original_sizes: Tuple[int, int]):
     """
     Adjust bounding boxes for letterboxing while maintaining aspect ratio.
 
@@ -43,14 +50,18 @@ def letterbox_adjust_boxes(boxes, letterbox_sizes: Tuple[int, int], original_siz
     Returns:
         torch.Tensor: Adjusted bounding boxes in pixel coordinates for the original image.
     """
-    adjusted_boxes = boxes.clone()
-    adjusted_boxes = xcycwh_to_xyxy(adjusted_boxes)
+    if isinstance(boxes, torch.Tensor):
+        boxes_np = boxes.cpu().numpy()
+    else:
+        boxes_np = boxes.copy()
     for i, (letterbox_size) in enumerate(letterbox_sizes):
+        _boxes = boxes_np[i]
+        boxes_xyxy = sv.xcycwh_to_xyxy(_boxes)
         input_w, input_h = original_sizes[i]
         letterbox_w, letterbox_h = letterbox_size
 
-        adjusted_boxes[i, :, [0, 2]] *= letterbox_w
-        adjusted_boxes[i, :, [1, 3]] *= letterbox_h
+        boxes_xyxy[:, [0, 2]] *= letterbox_w
+        boxes_xyxy[:, [1, 3]] *= letterbox_h
 
         target_ratio = letterbox_w / letterbox_h
         image_ratio = input_w / input_h
@@ -66,13 +77,16 @@ def letterbox_adjust_boxes(boxes, letterbox_sizes: Tuple[int, int], original_siz
         padding_top = (letterbox_h - height_new) // 2
         padding_left = (letterbox_w - width_new) // 2
 
-        adjusted_boxes[i, :, [0, 2]] -= padding_left
-        adjusted_boxes[i, :, [1, 3]] -= padding_top
+        boxes_xyxy[:, [0, 2]] -= padding_left
+        boxes_xyxy[:, [1, 3]] -= padding_top
 
-        adjusted_boxes[i, :, [0, 2]] *= scale
-        adjusted_boxes[i, :, [1, 3]] *= scale
+        boxes_xyxy[:, [0, 2]] *= scale
+        boxes_xyxy[:, [1, 3]] *= scale
+        boxes_np[i] = boxes_xyxy
 
-    return adjusted_boxes
+    if isinstance(boxes, torch.Tensor):
+        return torch.from_numpy(boxes_np)
+    return boxes_np
 
 
 def generalized_box_iou(boxes1: Tensor, boxes2: Tensor) -> Tensor:
