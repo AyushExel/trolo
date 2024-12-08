@@ -107,8 +107,8 @@ class ModelExporter(BaseExporter):
         simplify : bool = False
     ) -> None: 
         # Default input and output names with post-processing
-        input_names = input_names or ['images', 'orig_target_sizes']
-        output_names = output_names or ['boxes', 'scores', 'labels']
+        input_names = ['images', 'orig_target_sizes']
+        output_names =['boxes', 'scores', 'labels']
         
         # Prepare dynamic axes
         dynamic_axes = dynamic_axes or {
@@ -181,6 +181,7 @@ class ModelExporter(BaseExporter):
             onnx.save(onnx_model_simplified, exported_path)        
             onnx_model = onnx.load(exported_path)
             onnx.checker.check_model(onnx_model)
+            LOGGER.info(f"Simplified Model exported to ONNX: {exported_path}")
 
     def postprocess(
         self, outputs: torch.Tensor, letterbox_sizes: List[Tuple[int, int]], original_sizes: List[Tuple[int, int]]
