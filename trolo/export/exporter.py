@@ -1,17 +1,16 @@
 from typing import Dict, Union, Optional, List, Tuple
 import torch
 import os
-import torch.nn as nn 
-import onnx
+import torch.nn as nn
 from pathlib import Path
-from .base import BaseExporter
 from ..loaders import YAMLConfig
 from ..loaders.maps import get_model_config_path
 
-from ..utils.smart_defaults import infer_pretrained_model, infer_model_config_path
+from ..utils.smart_defaults import infer_pretrained_model, infer_model_config_path, infer_device
 from ..utils.logging.glob_logger import LOGGER
 
-class ModelExporter(BaseExporter):
+
+class ModelExporter:
 
     def __init__(
         self, 
@@ -30,12 +29,14 @@ class ModelExporter(BaseExporter):
         """
         if model is None:
             raise ValueError("Must specify model name or checkpoint path")
-        self.model_path = model
+        model_path = model
         # Convert model to path if it's a name
-        model = infer_pretrained_model(model)
+        self.model_path = infer_pretrained_model(model_path)
+        if os.path.exists(model):
+            LOGGER.error(f"{model} not found")
 
         # Load checkpoint first to check for config
-        checkpoint = torch.load(model, map_location="cpu", weights_only=False)
+        checkpoint = torch.load(self.model_path, map_location="cpu", weights_only=False)
 
         if config is None:
             if "cfg" in checkpoint:
@@ -51,7 +52,10 @@ class ModelExporter(BaseExporter):
                 config = get_model_config_path(config)
             self.config = self.load_config(config)
 
-        super().__init__(model, device)
+        self.device = torch.device(infer_device(device))
+        self.model = self.load_model(self.model_path)
+        self.model.to(self.device)
+        self.model.eval()
 
     def load_config(self, config_path: str) -> Dict:
         """Load config from YAML"""
@@ -76,6 +80,7 @@ class ModelExporter(BaseExporter):
         # Load state into config.model
         self.config.model.load_state_dict(state)
 
+        # Create deployment model wrapper so post process is included
         class ModelWrapper(nn.Module):
             def __init__(self, model):
                 super().__init__()
@@ -107,49 +112,57 @@ class ModelExporter(BaseExporter):
             raise ValueError(f"Export format is missing!")
 
         if export_format.lower().strip() == "onnx":
-            self._export2onnx(
+            self.export2onnx(
                 input_size=torch.tensor(input_size)
             )
 
-    def _export2onnx(
+    def export2onnx(
         self,
-        input_size : Union[List, Tuple] = None,
-        dynamic_axes : Optional [dict] =  {'images': {0: 'N'}, 'orig_target_sizes': {0: 'N'}},
+        input_size : Union[List, Tuple, torch.Tensor] = None,
+        dynamic : Optional [bool] = False,
         batch_size : Optional[int] =  1,
         opset_version : Optional[int] = 16,
         simplify : Optional[bool] = False
-    ) -> None: 
+    ) -> None:
+        import onnx
         input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
+        input_data = input_data.to(self.device)
+
         filename, file_ext = os.path.splitext(self.model_path)
         exported_path  =  f"{filename}.onnx"
-        dynamic_axes = dynamic_axes  or {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
+        if dynamic:
+            dynamic_axes = {'images': {0: 'N', },'orig_target_sizes': {0: 'N'}}
 
-        input_names = ['images', 'orig_target_sizes']
+        input_names = ['images']
         output_names = ['labels', 'boxes', 'scores']
 
-        dynamic_axes = None
+        # dynamic only compatible with cpu do not use it with gpu
         torch.onnx.export(
-            self.model.cpu(),
-            input_data,
+            self.model.cpu() if dynamic else self.model,
+            input_data.cpu() if dynamic else input_data,
             exported_path,
             input_names = input_names, 
             output_names = output_names,
-            dynamic_axes=dynamic_axes,
+            dynamic_axes=dynamic_axes if dynamic else None,
             opset_version=opset_version,
             verbose=False,
             do_constant_folding=True,
         )
+        if not os.path.exists(exported_path):
+            LOGGER.error(f"Failed to export model to ONNX: {exported_path}")
 
-        # TODO -  Exceptional Handler 
+        # Check the model
         onnx_model  = onnx.load(exported_path)
         onnx.checker.check_model(onnx_model)
         LOGGER.info(f"Model exported to ONNX: {exported_path}")
 
         if simplify:
+            LOGGER.info("Simplifying the onnx model")
             import onnxsim
             onnx_model_simplified, check = onnxsim.simplify(exported_path)
             onnx.save(onnx_model_simplified, exported_path)        
             onnx_model  = onnx.load(exported_path)
             onnx.checker.check_model(onnx_model)
+            LOGGER.info(f"Simplified model exported to ONNX: {exported_path}")
         
