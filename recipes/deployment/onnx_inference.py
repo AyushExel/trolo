@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Optional, Tuple
+import argparse
 
 from PIL import Image
 import numpy as np
@@ -8,10 +9,10 @@ import supervision as sv
 
 class OnnxInfer:
 
-    def __init__(self, model_path: str, infer_resolution: Optional[int] = 640, device: str = "cpu"):
+    def __init__(self, model_path: str, infer_resolution: Tuple[int, int] = (640, 640), device: str = "cpu"):
         self.model_path = model_path
         if isinstance(infer_resolution, int):
-            self.infer_resolution = [infer_resolution, infer_resolution]
+            self.infer_resolution = (infer_resolution, infer_resolution)
         self.infer_resolution = infer_resolution
         self.device = device
         self.session = rt.InferenceSession(self.model_path)
@@ -31,15 +32,15 @@ class OnnxInfer:
         boxes = self.post_process(image.size, boxes)
         detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
         detections = detections[detections.confidence > conf_threshold]
-        anotatted_image = self.annotate(image=image, detections=detections)
+        annotated_image = self.annotate(image=image, detections=detections)
         if vis:
-            anotatted_image.show()
+            annotated_image.show()
         if output_path:
-            anotatted_image.save(output_path)
+            annotated_image.save(output_path)
         return detections
 
     def preprocess(self, image: Image):
-        resized_im_pil = sv.letterbox_image(image, self.infer_resolution)
+        resized_im_pil = sv.letterbox_image(image, resolution_wh=self.infer_resolution)
         resized_im_pil = resized_im_pil.convert("RGB")
         im_data = np.asarray(resized_im_pil).astype(np.float32) / 255.0
         im_data = np.expand_dims(im_data, axis=0)
@@ -88,5 +89,16 @@ class OnnxInfer:
 
 
 if __name__ == "__main__":
-    infer = OnnxInfer(model_path="model.onnx")
-    infer.infer(input_path="bus.jpg", vis=True)
+
+    parser = argparse.ArgumentParser(description="Trolo onnx model inference.")
+    parser.add_argument("--input_path", type=str, required=True, help="Path to the input image file.")
+    parser.add_argument("--model_name", type=str, default="dfine-n.onnx", help="Name of the onnx detection model.")
+    parser.add_argument("--output_path", type=str, default="output.jpg",
+                        help="Path to save the output annotated image.")
+    parser.add_argument("--vis", type=bool, default=True,
+                        help="Whether to visualize the output frames (default: True).")
+    parser.add_argument("--conf_threshold", type=float, default=0.5,
+                        help="Confidence threshold for detection (default: 0.35).")
+    args = parser.parse_args()
+    infer = OnnxInfer(model_path=args.model_name)
+    infer.infer(input_path=args.input_path, vis=args.vis, output_path=args.output_path, conf_threshold=args.conf_threshold)
