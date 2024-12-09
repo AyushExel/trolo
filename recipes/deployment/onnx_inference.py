@@ -7,6 +7,12 @@ import onnxruntime as rt
 import supervision as sv
 
 
+"""
+Dependencies:
+pip install onnxruntime supervision
+"""
+
+
 class OnnxInfer:
     """
     A class for performing inference with an ONNX detection model.
