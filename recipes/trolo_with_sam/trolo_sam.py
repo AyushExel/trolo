@@ -108,7 +108,7 @@ def main(image_path: str,
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Object detection and tracking in video with line zone counting.")
+    parser = argparse.ArgumentParser(description="Object segmentation with trolo and SAM-HQ.")
     parser.add_argument("--image_path", type=str, help="Path to the input image file.")
     parser.add_argument("--model_name", type=str, default="dfine-l", help="Name of the detection model.")
     parser.add_argument("--sam_model_name", type=str, default="vit_b", help="Name of the SAM model.")

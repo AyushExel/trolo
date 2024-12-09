@@ -125,7 +125,8 @@ input_size = 640 # Inference resolution
 export_format = "onnx"  
 exporter = ModelExporter(model=model_path) exporter.export(input_size=input_size, export_format=export_format)  
 ``` 
-Visit Export Docs for more details
+Visit Export Docs for more details. 
+Please check [deployment](https://github.com/AyushExel/trolo/tree/master/recipes/deployment) for inference script for various deployment.
 
 
 ### Training
