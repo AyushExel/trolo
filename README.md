@@ -46,8 +46,10 @@ pip install trolo
 The D-FINE model redefines regression tasks in DETR-based detectors using Fine-grained Distribution Refinement (FDR).
 [Official Paper](https://arxiv.org/abs/2410.13842) | [Official Repo](https://github.com/Peterande/D-FINE)
 ![D-FINE Model Stats](https://raw.githubusercontent.com/Peterande/storage/master/figs/stats_padded.png)
+</details>
 
 ( All models will be automatically downloaded when you pass the name for any task)
+
 | Model | Dataset | AP<sup>val</sup> | #Params | Latency | GFLOPs |
 | :---: | :---: | :---: |  :---: | :---: | :---: |
 `dfine-n` | COCO | **42.8** | 4M | 2.12ms | 7
@@ -56,7 +58,7 @@ The D-FINE model redefines regression tasks in DETR-based detectors using Fine-g
 `dfine-l` | COCO | **54.0** | 31M | 8.07ms | 91
 `dfine-x` | COCO | **55.8** | 62M | 12.89ms | 202
 
-</details>
+
 
 <details>
 <summary><b>RT-DETR v3 (Coming Soon)</b></summary>
@@ -107,6 +109,23 @@ predictions = predictor.predict() # get predictions
 poltted_preds = predictor.visualize(show=True, save=True) # or get visualized outputs
 ```
 Visit Inference Docs for more details
+
+
+  
+### Model export    
+ Example export command: 
+ ```bash 
+ trolo export --model dfine-n --export_format onnx --input_size 640  
+ ```
+  Python API: 
+  
+```
+python from trolo.inference import ModelExporter model_path = "/path/to/model"  
+input_size = 640 # Inference resolution  
+export_format = "onnx"  
+exporter = ModelExporter(model=model_path) exporter.export(input_size=input_size, export_format=export_format)  
+``` 
+Visit Export Docs for more details
 
 
 ### Training
