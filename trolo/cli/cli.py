@@ -2,6 +2,7 @@ import click
 from pathlib import Path
 from trolo.trainers.detection import DetectionTrainer
 from trolo.inference.detection import DetectionPredictor
+from trolo.export.exporter import ModelExporter
 from trolo.utils.smart_defaults import (
     infer_device,
     infer_pretrained_model,
@@ -80,6 +81,18 @@ def eval(model, device, batch_size):
     # Support DDP evaluation
     device = device or infer_device()
     eval_detection(model, device=device, **overrides)
+
+
+@cli.command()
+@click.option("--model", "-m", type=str, default=DEFAULT_MODEL, help="Model name or path")
+@click.option("--input_size", "-i", type=int, default=640, help="Inference input size")
+@click.option("--export_format", "-e", type=str, default=None, help="Export format")
+def export(model, input_size, export_format):
+    """Run inference on images using a trained model"""
+
+    # Initialize predictor with smart defaults
+    exporter = ModelExporter(model=infer_pretrained_model(model))
+    exporter.export(input_size=input_size, export_format=export_format)
 
 
 def main():
