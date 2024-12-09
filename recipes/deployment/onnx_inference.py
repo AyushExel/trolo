@@ -8,19 +8,49 @@ import supervision as sv
 
 
 class OnnxInfer:
+    """
+    A class for performing inference with an ONNX detection model.
+
+    Attributes:
+        model_path (str): Path to the ONNX model file.
+        infer_resolution (Tuple[int, int]): Resolution to resize the input image for inference.
+        device (str): Device to use for inference (e.g., 'cpu', 'cuda').
+        session (onnxruntime.InferenceSession): ONNX runtime inference session.
+    """
 
     def __init__(self, model_path: str, infer_resolution: Tuple[int, int] = (640, 640), device: str = "cpu"):
+        """
+        Initializes the OnnxInfer class.
+
+        Args:
+            model_path (str): Path to the ONNX model file.
+            infer_resolution (Tuple[int, int]): Inference resolution (width, height). Default is (640, 640).
+            device (str): Inference device ('cpu' or 'cuda'). Default is 'cpu'.
+        """
         self.model_path = model_path
         if isinstance(infer_resolution, int):
             self.infer_resolution = (infer_resolution, infer_resolution)
         self.infer_resolution = infer_resolution
         self.device = device
-        self.session = rt.InferenceSession(self.model_path)
+        providers = ["CPUExecutionProvider"] if device == "cpu" else ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        self.session = rt.InferenceSession(self.model_path, providers=providers)
 
     def infer(self, input_path: str,
               conf_threshold: Optional[float] = 0.5,
               vis: Optional[bool]=True,
               output_path: Optional[str] = None) -> sv.Detections:
+        """
+        Perform inference on an input image.
+
+        Args:
+            input_path (str): Path to the input image file.
+            conf_threshold (Optional[float]): Confidence threshold for detections. Default is 0.5.
+            vis (Optional[bool]): Whether to visualize the results. Default is True.
+            output_path (Optional[str]): Path to save the annotated output image. Default is None.
+
+        Returns:
+            sv.Detections: Detected bounding boxes, labels, and confidence scores.
+        """
         image = Image.open(input_path)
         image_processed = self.preprocess(image)
         input_feed = {"images": image_processed}
@@ -40,6 +70,15 @@ class OnnxInfer:
         return detections
 
     def preprocess(self, image: Image):
+        """
+        Preprocess the input image for inference.
+
+        Args:
+            image (Image): Input PIL image.
+
+        Returns:
+            np.ndarray: Preprocessed image tensor ready for model input.
+        """
         resized_im_pil = sv.letterbox_image(image, resolution_wh=self.infer_resolution)
         resized_im_pil = resized_im_pil.convert("RGB")
         im_data = np.asarray(resized_im_pil).astype(np.float32) / 255.0
@@ -48,6 +87,16 @@ class OnnxInfer:
         return im_data
 
     def post_process(self, resolution_wh: Tuple[int, int], boxes: sv.Detections) -> Image:
+        """
+        Adjust bounding boxes to match the original image size.
+
+        Args:
+            resolution_wh (Tuple[int, int]): Original image resolution (width, height).
+            boxes (sv.Detections): Detected bounding boxes in model output format.
+
+        Returns:
+            np.ndarray: Adjusted bounding boxes in xyxy format.
+        """
         boxes_np = boxes.copy()
 
         boxes_xyxy = sv.xcycwh_to_xyxy(boxes_np)
@@ -80,6 +129,16 @@ class OnnxInfer:
         return boxes_xyxy
 
     def annotate(self, image: Image, detections: sv.Detections):
+        """
+        Annotate the image with detections.
+
+        Args:
+            image (Image): Input PIL image.
+            detections (sv.Detections): Detections to annotate.
+
+        Returns:
+            Image: Annotated PIL image.
+        """
         box_an = sv.BoxAnnotator()
         im_pil = box_an.annotate(image.copy(), detections)
         labels = [f"{int(class_id)}: {conf}" for class_id, conf in zip(detections.class_id, detections.confidence)]
