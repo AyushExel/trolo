@@ -18,7 +18,8 @@ env/
 *.egg-info
 dist/
 build/
-data/
+
+/data/
 weights/
 output/
 *.jpg
