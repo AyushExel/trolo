@@ -1,4 +1,6 @@
 from typing import Dict, Union, Optional, List, Tuple
+
+import numpy as np
 import torch
 import os
 import torch.nn as nn
@@ -110,10 +112,13 @@ class ModelExporter:
         # check the model format
         if export_format is None:
             raise ValueError(f"Export format is missing!")
-
         if export_format.lower().strip() == "onnx":
             self.export2onnx(
                 input_size=torch.tensor(input_size)
+            )
+        elif export_format.lower().strip() == "openvino":
+            self.export_openvino(
+                input_size=input_size
             )
 
     def export2onnx(
@@ -123,7 +128,7 @@ class ModelExporter:
         batch_size : Optional[int] =  1,
         opset_version : Optional[int] = 16,
         simplify : Optional[bool] = False
-    ) -> None:
+    ) -> Path:
         import onnx
         input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
@@ -165,4 +170,36 @@ class ModelExporter:
             onnx_model  = onnx.load(exported_path)
             onnx.checker.check_model(onnx_model)
             LOGGER.info(f"Simplified model exported to ONNX: {exported_path}")
-        
+
+
+    def export_openvino(
+        self,
+        input_size : Union[List, Tuple] = None,
+        dynamic : Optional [bool] = False,
+        batch_size : Optional[int] =  1,
+    ) -> None:
+
+        import openvino as ov
+        # input_data = np.random.randn(batch_size, 3, *input_size).astype(np.float32) / 255.0
+        #
+        filename, file_ext = os.path.splitext(self.model_path)
+        output_path = f"{filename}.xml"
+        #
+        # ov_model = ov.convert_model(
+        #     self.model.cpu(),
+        #     input=[1, 3, *input_size],
+        #     example_input=input_data,
+        # )
+        #
+        # print(f"Exporting model to OpenVINO: {output_path}")
+        # ov.runtime.save_model(ov_model, output_path, compress_to_fp16=False)
+
+        dummy_input = torch.randn(1, 3, 640, 640)
+        traced_model = torch.jit.trace(self.model.cpu(), dummy_input)
+        ov_model = ov.convert_model(
+            traced_model,  # Use traced model
+            share_weights=False
+        )
+
+        # Save the OpenVINO model
+        ov.save_model(ov_model, output_path)
