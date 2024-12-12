@@ -49,7 +49,6 @@ class OpenVinoInfer:
             print(output)
             # output_names.append(output.get_any_name())
 
-        print("Output names:", output_names)
 
         self.available_device = self.core.available_devices
         self.compile_model = self.core.compile_model(self.model_path, device)
@@ -79,20 +78,17 @@ class OpenVinoInfer:
         print(output)
         for key, val in output.items():
             print(f"{key}: {val.shape}")
-        quit()
 
-
-
-        labels, boxes, scores = output
+        labels = output['labels']
+        boxes = output['boxes']
+        scores = output['scores']
         labels = labels.squeeze()
         boxes = boxes.squeeze()
         scores = scores.squeeze()
 
-
-
         boxes = self.post_process(image.size, boxes)
         detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
-        detections = detections[detections.confidence > conf_threshold]
+        # detections = detections[detections.confidence > conf_threshold]
         annotated_image = self.annotate(image=image, detections=detections)
         if vis:
             annotated_image.show()
@@ -106,8 +102,9 @@ class OpenVinoInfer:
             input_tensor = openvino.Tensor(input_data)
             infer_request.set_tensor(input_name, input_tensor)
         infer_request.infer()
-        outputs = {'labels': infer_request.get_tensor('labels').data, 'boxes': infer_request.get_tensor('boxes').data,
-                   'scores': infer_request.get_tensor('scores').data}
+        outputs = {'labels': infer_request.get_tensor(self.compile_model.outputs[0]).data,
+                   'boxes': infer_request.get_tensor(self.compile_model.outputs[1]).data,
+                   'scores': infer_request.get_tensor(self.compile_model.outputs[2]).data}
         return outputs
 
     def preprocess(self, image: Image) -> Dict:
@@ -198,7 +195,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Trolo onnx model inference.")
     parser.add_argument("--input_path", type=str, default="bus.jpg", help="Path to the input image file.")
-    parser.add_argument("--model_name", type=str, default="dfine_m.xml", help="Name of the onnx detection model.")
+    parser.add_argument("--model_name", type=str, default="../../dfine_m.xml", help="Name of the onnx detection model.")
     parser.add_argument("--output_path", type=str, default="output.jpg",
                         help="Path to save the output annotated image.")
     parser.add_argument("--vis", type=bool, default=True,

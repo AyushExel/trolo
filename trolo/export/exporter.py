@@ -1,6 +1,5 @@
 from typing import Dict, Union, Optional, List, Tuple
 
-import numpy as np
 import torch
 import os
 import torch.nn as nn
