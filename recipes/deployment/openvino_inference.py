@@ -21,20 +21,19 @@ class OpenVinoInfer:
     A class for performing inference with an OpenVino detection model.
 
     Attributes:
-        model_path (str): Path to the ONNX model file.
+        model_path (str): Path to the OpenVino model file.
         infer_resolution (Tuple[int, int]): Resolution to resize the input image for inference.
-        device (str): Device to use for inference (e.g., 'cpu', 'cuda').
-        session (onnxruntime.InferenceSession): ONNX runtime inference session.
+        device (str): Device to use for inference (e.g., 'AUTO', 'cpu', 'cuda').
     """
 
     def __init__(self, model_path: str, infer_resolution: Tuple[int, int] = (640, 640), device: str = "AUTO"):
         """
-        Initializes the OnnxInfer class.
+        Initializes the OpenVino class.
 
         Args:
             model_path (str): Path to the ONNX model file.
             infer_resolution (Tuple[int, int]): Inference resolution (width, height). Default is (640, 640).
-            device (str): Inference device ('cpu' or 'cuda'). Default is 'cpu'.
+            device (str): Inference device ('AUTO', 'cpu' or 'cuda'). Default is 'AUTO'.
         """
         self.model_path = model_path
         if isinstance(infer_resolution, int):
@@ -43,17 +42,8 @@ class OpenVinoInfer:
         self.device = device
         self.core = Core()
         self.ov_model = self.core.read_model(model=str(model_path), weights=Path(model_path).with_suffix(".bin"))
-
-        output_names = []
-        for output in self.ov_model.outputs:
-            print(output)
-            # output_names.append(output.get_any_name())
-
-
         self.available_device = self.core.available_devices
         self.compile_model = self.core.compile_model(self.model_path, device)
-
-        self.query_num = self.compile_model.outputs[0].get_partial_shape()[1].get_length()
 
     def infer(self, input_path: str,
               conf_threshold: Optional[float] = 0.5,
@@ -75,10 +65,6 @@ class OpenVinoInfer:
         input_data = self.preprocess(image)
         output = self._infer(input_data)
 
-        print(output)
-        for key, val in output.items():
-            print(f"{key}: {val.shape}")
-
         labels = output['labels']
         boxes = output['boxes']
         scores = output['scores']
@@ -88,7 +74,7 @@ class OpenVinoInfer:
 
         boxes = self.post_process(image.size, boxes)
         detections = sv.Detections(xyxy=boxes, confidence=scores, class_id=labels)
-        # detections = detections[detections.confidence > conf_threshold]
+        detections = detections[detections.confidence > conf_threshold]
         annotated_image = self.annotate(image=image, detections=detections)
         if vis:
             annotated_image.show()
@@ -120,11 +106,7 @@ class OpenVinoInfer:
         resized_im_pil = sv.letterbox_image(image, resolution_wh=self.infer_resolution)
         resized_im_pil = resized_im_pil.convert("RGB")
         im_data = np.asarray(resized_im_pil).astype(np.float32) / 255.0
-        # im_data = np.expand_dims(im_data, axis=0)
-        # im_data = np.transpose(im_data, (0, 3, 1, 2))
-
-        blob_image = cv2.dnn.blobFromImage(im_data, 1.0 / 255.0)
-        orig_size = np.array([im_data.shape[0], im_data.shape[1]]).reshape(1, 2)
+        blob_image = cv2.dnn.blobFromImage(im_data, 1.0)
         inputs = {
             'images': blob_image,
         }

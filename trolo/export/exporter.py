@@ -104,7 +104,8 @@ class ModelExporter:
     def export(
         self, 
         input_size : Union[List, Tuple[int, int], int] =  (640, 640),
-        export_format : str = "onnx"
+        export_format : str = "onnx",
+        fp16: Optional[bool] = False,
     ):
         if isinstance(input_size, int):
             input_size = (input_size, input_size)
@@ -117,7 +118,8 @@ class ModelExporter:
             )
         elif export_format.lower().strip() == "openvino":
             self.export_openvino(
-                input_size=input_size
+                input_size=input_size,
+                fp16=fp16,
             )
 
     def export2onnx(
@@ -176,29 +178,21 @@ class ModelExporter:
         input_size : Union[List, Tuple] = None,
         dynamic : Optional [bool] = False,
         batch_size : Optional[int] =  1,
+        fp16 : Optional[bool] = False
     ) -> None:
 
         import openvino as ov
-        # input_data = np.random.randn(batch_size, 3, *input_size).astype(np.float32) / 255.0
-        #
+        import numpy as np
+
+
         filename, file_ext = os.path.splitext(self.model_path)
         output_path = f"{filename}.xml"
-        #
-        # ov_model = ov.convert_model(
-        #     self.model.cpu(),
-        #     input=[1, 3, *input_size],
-        #     example_input=input_data,
-        # )
-        #
-        # print(f"Exporting model to OpenVINO: {output_path}")
-        # ov.runtime.save_model(ov_model, output_path, compress_to_fp16=False)
-
-        dummy_input = torch.randn(1, 3, 640, 640)
-        traced_model = torch.jit.trace(self.model.cpu(), dummy_input)
+        input_data = np.random.randn(batch_size, 3, *input_size).astype(np.float32) / 255.0
         ov_model = ov.convert_model(
-            traced_model,  # Use traced model
-            share_weights=False
+            self.model.cpu(),
+            input=[batch_size, 3, *input_size],
+            example_input=input_data,
         )
 
-        # Save the OpenVINO model
-        ov.save_model(ov_model, output_path)
+        print(f"Exporting model to OpenVINO: {output_path}")
+        ov.runtime.save_model(ov_model, output_path, compress_to_fp16=fp16)
