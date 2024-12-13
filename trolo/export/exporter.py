@@ -1,11 +1,14 @@
 from typing import Dict, Union, Optional, List, Tuple
-import torch
+
 import os
-import torch.nn as nn
 from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+
 from ..loaders import YAMLConfig
 from ..loaders.maps import get_model_config_path
-
 from ..utils.smart_defaults import infer_pretrained_model, infer_model_config_path, infer_device
 from ..utils.logging.glob_logger import LOGGER
 
@@ -103,7 +106,8 @@ class ModelExporter:
     def export(
         self, 
         input_size : Union[List, Tuple[int, int], int] =  (640, 640),
-        export_format : str = "onnx"
+        export_format : str = "onnx",
+        fp16: Optional[bool] = False,
     ):
         if isinstance(input_size, int):
             input_size = (input_size, input_size)
@@ -111,10 +115,21 @@ class ModelExporter:
         if export_format is None:
             raise ValueError(f"Export format is missing!")
 
+        LOGGER.info(f"Exporting {self.model_path} to {export_format}")
         if export_format.lower().strip() == "onnx":
-            self.export2onnx(
+            exported_path = self.export2onnx(
                 input_size=torch.tensor(input_size)
             )
+        elif export_format.lower().strip() == "openvino":
+            exported_path = self.export_openvino(
+                input_size=input_size,
+                fp16=fp16,
+            )
+
+        if not os.path.exists(exported_path):
+            LOGGER.error(f"Failed to export model to ONNX: {exported_path}")
+
+        LOGGER.info(f"Model exported to {exported_path}")
 
     def export2onnx(
         self,
@@ -123,7 +138,7 @@ class ModelExporter:
         batch_size : Optional[int] =  1,
         opset_version : Optional[int] = 16,
         simplify : Optional[bool] = False
-    ) -> None:
+    ) -> str:
         import onnx
         input_size  = torch.tensor(input_size)
         input_data = torch.rand(batch_size, 3, *input_size)
@@ -149,8 +164,6 @@ class ModelExporter:
             verbose=False,
             do_constant_folding=True,
         )
-        if not os.path.exists(exported_path):
-            LOGGER.error(f"Failed to export model to ONNX: {exported_path}")
 
         # Check the model
         onnx_model  = onnx.load(exported_path)
@@ -165,4 +178,28 @@ class ModelExporter:
             onnx_model  = onnx.load(exported_path)
             onnx.checker.check_model(onnx_model)
             LOGGER.info(f"Simplified model exported to ONNX: {exported_path}")
-        
+
+        return exported_path
+
+
+    def export_openvino(
+        self,
+        input_size : Union[List, Tuple] = None,
+        dynamic : Optional [bool] = False,
+        batch_size : Optional[int] =  1,
+        fp16 : Optional[bool] = False
+    ) -> str:
+
+        import openvino as ov
+
+        filename, file_ext = os.path.splitext(self.model_path)
+        output_path = f"{filename}.xml"
+        input_data = np.random.randn(batch_size, 3, *input_size).astype(np.float32) / 255.0
+        ov_model = ov.convert_model(
+            self.model.cpu(),
+            input=[batch_size, 3, *input_size],
+            example_input=input_data,
+        )
+
+        ov.runtime.save_model(ov_model, output_path, compress_to_fp16=fp16)
+        return output_path

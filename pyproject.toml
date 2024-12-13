@@ -38,6 +38,7 @@ dev = [
 export = [
     "onnx",
     "onnxsim",
+    "openvino"
 ]
 
 [project.scripts]
