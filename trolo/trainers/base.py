@@ -389,7 +389,6 @@ class BaseTrainer(object):
     def _setup(self):
         """Avoid instantiating unnecessary classes"""
         self._init_loggers()
-        self.check_and_download_dataset()
         self._validate_config(self.cfg)
 
         cfg = self.cfg
@@ -443,6 +442,9 @@ class BaseTrainer(object):
         """
         # Get device(s) based on specification
         devices = dist_utils.infer_ddp_devices(device)
+
+        # Check for data and download if needed
+        self.check_and_download_dataset()
 
         # Check if we're already in a distributed environment
         is_distributed = dist_utils.is_dist_available_and_initialized()
