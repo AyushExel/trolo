@@ -58,7 +58,6 @@ class DetectionPredictor(BasePredictor):
 
         self.transforms = self.build_transforms()
         super().__init__(model, device)
-        self.fps_monitor = sv.FPSMonitor()
 
     def load_config(self, config_path: str) -> Dict:
         """Load config from YAML"""
@@ -234,4 +233,3 @@ class DetectionPredictor(BasePredictor):
         if return_inputs:
             return filtered_predictions, original_images
         return filtered_predictions
-

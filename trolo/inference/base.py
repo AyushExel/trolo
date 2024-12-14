@@ -19,6 +19,7 @@ class BasePredictor(ABC):
         self.model = self.load_model(model_path)
         self.model.to(self.device)
         self.model.eval()
+        self.fps_monitor = sv.FPSMonitor() # Monitor for FPS calculation
 
     @abstractmethod
     def load_model(self, model_path: str) -> torch.nn.Module:
@@ -83,6 +84,7 @@ class BasePredictor(ABC):
 
         # Run prediction and visualization for images
         predictions, inputs = self.predict(input, return_inputs=True, conf_threshold=conf_threshold)
+        LOGGER.info(f"Average FPS: {self.fps_monitor.fps:.2f}")
 
         # Try to get class names from model config
         class_names = self.config.yaml_cfg.get("class_names", None)
@@ -130,8 +132,7 @@ class BasePredictor(ABC):
             output_path = output_path.with_stem(output_path.stem + "_predictions.mp4")
             video_info = sv.VideoInfo.from_video_path(source)
             video_sink = sv.VideoSink(target_path=str(output_path), video_info=video_info).__enter__()
-        fps_counter = sv.FPSMonitor()
-        pbar = tqdm(desc="Processing video frame", total=0, unit="record", dynamic_ncols=True)
+        pbar = tqdm(desc="Processing video frame", total=0, dynamic_ncols=True)
         with VideoStream(source, batch_size=batch_size) as stream:
             # Process stream in batches
             idx = 0
@@ -156,9 +157,8 @@ class BasePredictor(ABC):
                         cv2.imshow("Video Stream", bgr_frame)
                         if cv2.waitKey(1) & 0xFF == ord("q"):
                             return
-                fps_counter.tick()
-                fps = fps_counter.fps
                 pbar.update(idx)
+                fps = self.fps_monitor.fps
                 pbar.set_description(f"Processing video frame at FPS: {fps:.2f}")
                 idx += 1
 
