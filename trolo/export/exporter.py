@@ -3,6 +3,7 @@ from typing import Dict, Union, Optional, List, Tuple
 import os
 import sys
 from pathlib import Path
+import traceback
 
 import numpy as np
 import torch
@@ -131,7 +132,7 @@ class ModelExporter:
         elif export_format.lower().strip() == "engine" or  export_format.lower().strip() =="tensorrt" :
             exported_path = self.export_engine(
                 input_size=input_size,
-                dtype="fp32",
+                dtype="fp32"
             )
 
         if not os.path.exists(exported_path):
@@ -213,9 +214,11 @@ class ModelExporter:
         return output_path
 
     def export_engine( 
+        self,
         input_size : Union[List, Tuple] = None,
-        dtpye : Optional [str] = "fp32",
+        dtype : Optional [str] = "fp32",
         batch_size : Optional[int] =  1,
+        verbose : Optional[bool] =  False
         ):
         # chec device
         if self.device is None or self.device == "cpu":
@@ -226,23 +229,24 @@ class ModelExporter:
         # check file
         if not self.model_path.endswith("onnx"):
             exported_path = self.export2onnx(input_size, batch_size=batch_size )
-        exported_path =  self.model_path
+        else:
+            exported_path =  self.model_path
 
         filename, file_ext = os.path.splitext(self.model_path)
 
         # check dtpype
-        if dtpye.lower() == "int8":
+        if dtype.lower() == "int8":
             trt_dtype = trt.DataType.INT8
             raise ValueError("Currently we do not supprot the int8  conversion & calibration")
-        elif dtpye.lower() == "fp16":
+        elif dtype.lower() == "fp16":
             trt_dtype = trt.DataType.HALF
 
-        elif dtpye.lower() == "fp32":
+        elif dtype.lower() == "fp32":
             trt_dtype = trt.DataType.FLOAT
         else:
             raise ValueError(f"Unsupported data type {dtype}")
         
-        if int(trt.__version__[0]) < 8:
+        if int(trt.__version__[0]) > 8:
             raise RuntimeError(
             f"Incompatible TensorRT version detected! The required version is 8 or higher, "
             f"but your current version is {trt.__version__}. Please upgrade TensorRT to proceed."
@@ -267,15 +271,14 @@ class ModelExporter:
         outputs = [network.get_output(i) for i in range(network.num_outputs)]
 
         config = builder.create_builder_config()
-        config.max_workspace_size = 2 << 30
         if trt_dtype == trt.DataType.HALF:
             config.flags |= 1 << int(trt.BuilderFlag.FP16)
         
         # TODO :- Implement INT8
 
-        engine = builder.build_engine(network, config)
+        engine = builder.build_serialized_network(network, config)
 
-         if not engine:
+        if not engine:
             _, _, tb = sys.exc_info()
             traceback.print_tb(tb) 
 
@@ -288,10 +291,11 @@ class ModelExporter:
             else:
                 raise AssertionError("Engine creation failed, no traceback available.")
 
-        engine_f = f"{filename}-{str(dtpye)}.engine"
+        engine_f = f"{filename}_{str(dtype)}.engine"
         with open(engine_f, "wb") as f:
-            f.write(engine.serialize())
+            f.write(engine)
         
         LOGGER.info(f"TRT Engine saved to file :{engine_f}")
+        return engine_f
         
         
