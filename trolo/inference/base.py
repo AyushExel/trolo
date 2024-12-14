@@ -6,6 +6,7 @@ import supervision as sv
 import torch
 from PIL import Image
 import cv2
+from tqdm import tqdm
 
 from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
 from trolo.inference.video import VideoStream
@@ -19,6 +20,7 @@ class BasePredictor(ABC):
         self.model = self.load_model(model_path)
         self.model.to(self.device)
         self.model.eval()
+        self.fps_monitor = sv.FPSMonitor() # Monitor for FPS calculation
 
     @abstractmethod
     def load_model(self, model_path: str) -> torch.nn.Module:
@@ -83,6 +85,7 @@ class BasePredictor(ABC):
 
         # Run prediction and visualization for images
         predictions, inputs = self.predict(input, return_inputs=True, conf_threshold=conf_threshold)
+        LOGGER.info(f"Average FPS: {self.fps_monitor.fps:.2f}")
 
         # Try to get class names from model config
         class_names = self.config.yaml_cfg.get("class_names", None)
@@ -123,17 +126,17 @@ class BasePredictor(ABC):
     ) -> None:
         """Internal method to process video streams"""
         class_names = self.config.yaml_cfg.get("class_names", None)
-
         if save:
             output_path = output_path or infer_output_path()
             output_path = Path(output_path)
             output_path = output_path.with_stem(output_path.stem + "_predictions.mp4")
             video_info = sv.VideoInfo.from_video_path(source)
             video_sink = sv.VideoSink(target_path=str(output_path), video_info=video_info).__enter__()
-
-        with VideoStream(source, batch_size=batch_size) as stream:
+        pbar = tqdm(desc="Processing video frame", total=0, dynamic_ncols=True)
+        with VideoStream(source, batch_size=batch_size) as video_stream:
             # Process stream in batches
-            for batch in stream:
+            idx = 0
+            for batch in video_stream:
                 frames = batch["frames"]  # List of RGB numpy arrays
 
                 # Convert frames to PIL Images
@@ -154,6 +157,10 @@ class BasePredictor(ABC):
                         cv2.imshow("Video Stream", bgr_frame)
                         if cv2.waitKey(1) & 0xFF == ord("q"):
                             return
+                pbar.update(idx)
+                fps = self.fps_monitor.fps
+                pbar.set_description(f"Processing video frame at FPS: {fps:.2f}")
+                idx += 1
 
             if show:
                 cv2.destroyAllWindows()

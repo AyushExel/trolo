@@ -2,6 +2,7 @@ import sys
 import math
 from typing import Iterable
 
+import supervision as sv
 import torch
 import torch.amp
 from torch.utils.tensorboard import SummaryWriter
@@ -138,6 +139,8 @@ def evaluate(
     # coco_evaluator = CocoEvaluator(base_ds, iou_types)
     # coco_evaluator.coco_eval[iou_types[0]].params.iouThrs = [0, 0.1, 0.5, 0.75]
 
+    fps_monitor = sv.FPSMonitor()
+
     for samples, targets in metric_logger.log_every(data_loader, 10, header):
         samples = samples.to(device)
         targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
@@ -159,7 +162,9 @@ def evaluate(
         res = {target["image_id"].item(): output for target, output in zip(targets, results)}
         if coco_evaluator is not None:
             coco_evaluator.update(res)
+        fps_monitor.tick()
 
+    LOGGER.info(f"Averaged FPS: {fps_monitor.fps}")
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     LOGGER.info(f"Averaged stats: {metric_logger}")

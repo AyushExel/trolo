@@ -6,12 +6,13 @@ from PIL import Image
 import numpy as np
 import torchvision.transforms as T
 import supervision as sv
+from tqdm import tqdm
 
+from .video import VideoStream
 from .base import BasePredictor
 from ..loaders import YAMLConfig
 from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
-from ..inference.video import VideoStream
 from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder, infer_pretrained_model
 from ..utils.box_ops import letterbox_adjust_boxes
 
@@ -230,7 +231,7 @@ class DetectionPredictor(BasePredictor):
             filtered_predictions.append(
                 {"boxes": pred["boxes"][mask], "scores": pred["scores"][mask], "labels": pred["labels"][mask]}
             )
-
+        self.fps_monitor.tick()
         if return_inputs:
             return filtered_predictions, original_images
         return filtered_predictions
@@ -244,13 +245,14 @@ class DetectionPredictor(BasePredictor):
         stream: bool = True,
     ) -> Iterator[Tuple[List[Dict[str, Any]], List[Image.Image]]]:
         """Internal method to process video streams"""
-
+        pbar = tqdm(desc="Processing video frame", total=0, dynamic_ncols=True)
         with VideoStream(source, batch_size=batch_size) as video_stream:
             if not stream:
                 # Collect all predictions if not streaming
                 all_predictions = []
                 all_frames = []
 
+            idx = 0
             for batch in video_stream:
                 frames = batch["frames"]
 
@@ -266,6 +268,10 @@ class DetectionPredictor(BasePredictor):
                     all_predictions.extend(predictions)
                     if return_inputs:
                         all_frames.extend(frames)
+                pbar.update(idx)
+                fps = self.fps_monitor.fps
+                pbar.set_description(f"Processing video frame at FPS: {fps:.2f}")
+                idx += 1
 
             if not stream:
                 return all_predictions, all_frames if return_inputs else all_predictions
