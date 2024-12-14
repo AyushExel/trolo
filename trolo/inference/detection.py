@@ -11,7 +11,6 @@ from .base import BasePredictor
 from ..loaders import YAMLConfig
 from ..utils.smart_defaults import infer_model_config_path
 from ..loaders.maps import get_model_config_path
-from ..inference.video import VideoStream
 from ..utils.smart_defaults import infer_input_type, infer_input_path, get_images_from_folder, infer_pretrained_model
 from ..utils.box_ops import letterbox_adjust_boxes
 
@@ -59,6 +58,7 @@ class DetectionPredictor(BasePredictor):
 
         self.transforms = self.build_transforms()
         super().__init__(model, device)
+        self.fps_monitor = sv.FPSMonitor()
 
     def load_config(self, config_path: str) -> Dict:
         """Load config from YAML"""
@@ -230,42 +230,8 @@ class DetectionPredictor(BasePredictor):
             filtered_predictions.append(
                 {"boxes": pred["boxes"][mask], "scores": pred["scores"][mask], "labels": pred["labels"][mask]}
             )
-
+        self.fps_monitor.tick()
         if return_inputs:
             return filtered_predictions, original_images
         return filtered_predictions
 
-    def _predict_video(
-        self,
-        source: Union[str, int],
-        batch_size: int = 1,
-        conf_threshold: float = 0.5,
-        return_inputs: bool = True,
-        stream: bool = True,
-    ) -> Iterator[Tuple[List[Dict[str, Any]], List[Image.Image]]]:
-        """Internal method to process video streams"""
-
-        with VideoStream(source, batch_size=batch_size) as video_stream:
-            if not stream:
-                # Collect all predictions if not streaming
-                all_predictions = []
-                all_frames = []
-
-            for batch in video_stream:
-                frames = batch["frames"]
-
-                # convert to PIL
-                frames = [sv.cv2_to_pillow(frame) for frame in frames]
-
-                # Get predictions for batch
-                predictions = self.predict(frames, conf_threshold=conf_threshold, return_inputs=False)
-
-                if stream:
-                    yield predictions, frames if return_inputs else predictions
-                else:
-                    all_predictions.extend(predictions)
-                    if return_inputs:
-                        all_frames.extend(frames)
-
-            if not stream:
-                return all_predictions, all_frames if return_inputs else all_predictions
