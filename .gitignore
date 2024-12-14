@@ -27,3 +27,5 @@ wandb/
 env_exp/
 *.jpeg
 *.png
+*.bin
+*.xml
