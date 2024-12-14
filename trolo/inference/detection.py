@@ -245,14 +245,13 @@ class DetectionPredictor(BasePredictor):
         stream: bool = True,
     ) -> Iterator[Tuple[List[Dict[str, Any]], List[Image.Image]]]:
         """Internal method to process video streams"""
-
+        pbar = tqdm(desc="Processing video frame", total=0, dynamic_ncols=True)
         with VideoStream(source, batch_size=batch_size) as video_stream:
             if not stream:
                 # Collect all predictions if not streaming
                 all_predictions = []
                 all_frames = []
 
-            pbar = tqdm(desc="Processing video frame", total=0, dynamic_ncols=True)
             idx = 0
             for batch in video_stream:
                 frames = batch["frames"]

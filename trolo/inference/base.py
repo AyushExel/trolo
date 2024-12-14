@@ -5,8 +5,10 @@ from typing import Union, List, Dict, Any, Optional, Tuple
 import supervision as sv
 import torch
 from PIL import Image
+import cv2
 
 from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
+from trolo.inference.video import VideoStream
 from trolo.utils.draw_utils import draw_predictions
 from trolo.utils.logging import LOGGER
 
@@ -111,3 +113,54 @@ class BasePredictor(ABC):
                 viz_images.save(save_dir / "pred.jpg")
 
         return viz_images
+
+    def _process_video(
+        self,
+        source: Union[str, int],
+        batch_size: int = 1,
+        conf_threshold: float = 0.5,
+        show: bool = True,
+        save: bool = True,
+        output_path: Optional[str] = None,
+    ) -> None:
+        """Internal method to process video streams"""
+        class_names = self.config.yaml_cfg.get("class_names", None)
+        from tqdm import tqdm
+        if save:
+            output_path = output_path or infer_output_path()
+            output_path = Path(output_path)
+            output_path = output_path.with_stem(output_path.stem + "_predictions.mp4")
+            video_info = sv.VideoInfo.from_video_path(source)
+            video_sink = sv.VideoSink(target_path=str(output_path), video_info=video_info).__enter__()
+        pbar = tqdm(desc="Processing video frame", total=0, dynamic_ncols=True)
+        with VideoStream(source, batch_size=batch_size) as video_stream:
+            # Process stream in batches
+            idx = 0
+            for batch in video_stream:
+                frames = batch["frames"]  # List of RGB numpy arrays
+
+                # Convert frames to PIL Images
+                pil_frames = [Image.fromarray(frame) for frame in frames]
+
+                # Run prediction and visualization
+                predictions, _ = self.predict(pil_frames, return_inputs=True, conf_threshold=conf_threshold)
+                viz_frames = draw_predictions(pil_frames, predictions, class_names=class_names)
+
+                # Convert back to BGR for OpenCV
+                for viz_frame in viz_frames:
+                    bgr_frame = sv.pillow_to_cv2(viz_frame)
+
+                    if save:
+                        video_sink.write_frame(frame=bgr_frame)
+
+                    if show:
+                        cv2.imshow("Video Stream", bgr_frame)
+                        if cv2.waitKey(1) & 0xFF == ord("q"):
+                            return
+                pbar.update(idx)
+                fps = self.fps_monitor.fps
+                pbar.set_description(f"Processing video frame at FPS: {fps:.2f}")
+                idx += 1
+
+            if show:
+                cv2.destroyAllWindows()
