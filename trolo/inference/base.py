@@ -6,6 +6,7 @@ import supervision as sv
 import torch
 from PIL import Image
 import cv2
+from tqdm import tqdm
 
 from trolo.utils.smart_defaults import infer_input_type, infer_output_path, infer_device
 from trolo.inference.video import VideoStream
@@ -125,7 +126,6 @@ class BasePredictor(ABC):
     ) -> None:
         """Internal method to process video streams"""
         class_names = self.config.yaml_cfg.get("class_names", None)
-        from tqdm import tqdm
         if save:
             output_path = output_path or infer_output_path()
             output_path = Path(output_path)
