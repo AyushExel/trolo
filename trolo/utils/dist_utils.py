@@ -8,16 +8,17 @@ import torch
 import torch.nn as nn
 import torch.distributed
 import torch.backends.cudnn
+import logging
 
 from torch.nn.parallel import DataParallel as DP
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 
 from torch.utils.data import DistributedSampler
-
 # from torch.utils.data.dataloader import DataLoader
 from ..data import DataLoader
 
+LOGGER = logging.getLogger(__name__)
 
 def setup_distributed(
     print_rank: int = 0,
@@ -46,11 +47,11 @@ def setup_distributed(
         torch.cuda.empty_cache()
         enabled_dist = True
         if get_rank() == print_rank:
-            logger.info("Initialized distributed mode...")
+            LOGGER.info("Initialized distributed mode...")
 
     except Exception:
         enabled_dist = False
-        logger.warning("Not init distributed mode.")
+        LOGGER.warning("Not init distributed mode.")
 
     setup_print(get_rank() == print_rank, method=print_method)
     if seed is not None:
@@ -136,7 +137,7 @@ def warp_model(
         if sync_bn and using_gpu:
             model = nn.SyncBatchNorm.convert_sync_batchnorm(model)
         else:
-            logger.warning("SyncBatchNorm is not applied because GPU is not available.")
+            LOGGER.warning("SyncBatchNorm is not applied because GPU is not available.")
 
         if dist_mode == "dp":
             if using_gpu:
