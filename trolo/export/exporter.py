@@ -213,89 +213,56 @@ class ModelExporter:
         ov.runtime.save_model(ov_model, output_path, compress_to_fp16=fp16)
         return output_path
 
-    def export_engine( 
+    def export_engine(
         self,
-        input_size : Union[List, Tuple] = None,
-        dtype : Optional [str] = "fp32",
-        batch_size : Optional[int] =  1,
-        verbose : Optional[bool] =  False
-        ):
-        # chec device
+        input_size: Union[List, Tuple] = None,
+        dtype: Optional[str] = "fp32",
+        batch_size: Optional[int] = 1,
+        verbose: Optional[bool] = False,
+    ):
+        # Check device
         if self.device is None or self.device == "cpu":
             raise ValueError(
-            "TensorRT requires GPU export, but no device was specified. Please explicitly specify a GPU device (e.g., device=cuda:0) to proceed."           
+                "TensorRT requires GPU export, but no device was specified. Please explicitly specify a GPU device (e.g., device=cuda:0) to proceed."
             )
-        import tensorrt  as trt
-        # check file
+
+        import tensorrt as trt
+
         if not self.model_path.endswith("onnx"):
-            exported_path = self.export2onnx(input_size, batch_size=batch_size )
+            exported_path = self.export2onnx(input_size, batch_size=batch_size)
         else:
-            exported_path =  self.model_path
-
-        filename, file_ext = os.path.splitext(self.model_path)
-
-        # check dtpype
-        if dtype.lower() == "int8":
-            trt_dtype = trt.DataType.INT8
-            raise ValueError("Currently we do not supprot the int8  conversion & calibration")
-        elif dtype.lower() == "fp16":
-            trt_dtype = trt.DataType.HALF
-
-        elif dtype.lower() == "fp32":
-            trt_dtype = trt.DataType.FLOAT
-        else:
-            raise ValueError(f"Unsupported data type {dtype}")
-        
-        if int(trt.__version__[0]) > 8:
-            raise RuntimeError(
-            f"Incompatible TensorRT version detected! The required version is 8 or higher, "
-            f"but your current version is {trt.__version__}. Please upgrade TensorRT to proceed."
-            )
-        
-        net_flags  = 1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
-        # TODO :: INT8 Support needed
+            exported_path = self.model_path
 
         if verbose:
-            trt_logger = trt.Logger(trt.LOGGER.Verbose)
+            trt_logger = trt.Logger(trt.Logger.Severity.VERBOSE)
         else:
-            trt_logger = trt.Logger()
-        
-        builder  = trt.Builder(trt_logger)
-        network = builder.create_network(net_flags)
+            trt_logger = trt.Logger(trt.Logger.Severity.WARNING)
+
+        builder = trt.Builder(trt_logger)
+        network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
         parser = trt.OnnxParser(network, trt_logger)
 
         if not parser.parse_from_file(exported_path):
             raise RuntimeError(f"Failed to load ONNX file {exported_path}")
-            
-        inputs = [network.get_input(i) for i in range(network.num_inputs)]
-        outputs = [network.get_output(i) for i in range(network.num_outputs)]
 
         config = builder.create_builder_config()
-        if trt_dtype == trt.DataType.HALF:
+        if dtype.lower() == "fp16":
             config.flags |= 1 << int(trt.BuilderFlag.FP16)
-        
-        # TODO :- Implement INT8
+        elif dtype.lower() == "int8":
+            config.flags |= 1 << int(trt.BuilderFlag.INT8)
+            raise NotImplementedError("INT8 calibration is not yet implemented.")
 
-        engine = builder.build_serialized_network(network, config)
+        try:
+            engine = builder.build_serialized_network(network, config)
+            if not engine:
+                raise RuntimeError("Failed to build TensorRT engine.")
+        except Exception as e:
+            raise RuntimeError(f"Engine serialization failed: {str(e)}")
 
-        if not engine:
-            _, _, tb = sys.exc_info()
-            traceback.print_tb(tb) 
-
-            tb_info = traceback.extract_tb(tb)
-            if tb_info:
-                _, line, _, text = tb_info[-1] 
-                raise AssertionError(
-                    f"Parsing failed on line {line} in statement: {text}"
-                )
-            else:
-                raise AssertionError("Engine creation failed, no traceback available.")
-
+        filename = Path(self.model_path).stem
         engine_f = f"{filename}_{str(dtype)}.engine"
         with open(engine_f, "wb") as f:
             f.write(engine)
-        
-        LOGGER.info(f"TRT Engine saved to file :{engine_f}")
+
+        LOGGER.info(f"TRT Engine saved to file: {engine_f}")
         return engine_f
-        
-        
