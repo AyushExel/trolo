@@ -1,2 +1,2 @@
 from . import dfine
-from . import rtdetr
+from . import rtdetrv2

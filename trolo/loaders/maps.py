@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict
 from trolo.models.dfine.maps import MODEL_CONFIG_MAP as DFINE_MODEL_CONFIG_MAP
+from trolo.models.rtdetrv2.maps import MODEL_CONFIG_MAP as RTDETRV2_MODEL_CONFIG_MAP
 
 # Get package root directory
 PKG_ROOT = Path(__file__).parent.parent
@@ -9,6 +10,7 @@ CONFIG_ROOT = PKG_ROOT / "configs" / "yaml"
 # Map of model names to their config files
 MODEL_CONFIG_MAP = {
     **DFINE_MODEL_CONFIG_MAP,
+    **RTDETRV2_MODEL_CONFIG_MAP,
 }
 
 
